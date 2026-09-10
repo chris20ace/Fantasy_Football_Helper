@@ -1,0 +1,16 @@
+# Local credentials and generated account data
+work/
+*.dpapi
+*.pending
+*.secret
+.env
+.env.*
+!.env.example
+
+# Local build and editor files
+node_modules/
+dist/
+.venv/
+__pycache__/
+.DS_Store
+Thumbs.db
