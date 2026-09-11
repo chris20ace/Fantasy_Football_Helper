@@ -1,6 +1,9 @@
 # Sunday Desk ESPN Connector — submission materials
 
-Status: prepared; publisher registration and actual submission are still required. Do not mark the app's Install button published until the listing is approved and publicly installable.
+Status: uploaded as a completed Chrome Web Store draft. The store lists verification of a public publisher contact email as the remaining submission blocker. The item has not entered review. Do not mark the app's Install button published until the listing is approved and publicly installable.
+
+Item ID: nmnefiogkokeggmhhijpjoaheegmkjcg
+Developer draft: https://chrome.google.com/webstore/devconsole/1b42e1a7-fb0a-4c4b-b1e5-01e1d6dd4464/nmnefiogkokeggmhhijpjoaheegmkjcg/edit
 
 ## Listing
 
@@ -9,7 +12,7 @@ Name: Sunday Desk ESPN Connector
 Summary: Import your ESPN Fantasy Football teams into your private Sunday Desk dashboard. Choose your leagues and connect in a few clicks.
 
 Language: English
-Category: choose the available category closest to Tools / Productivity.
+Category: Tools
 Price: Free
 Homepage: https://fantasy-football-helper-orcin.vercel.app/setup
 Support: https://github.com/chris20ace/Fantasy_Football_Helper/issues
@@ -26,7 +29,7 @@ The connector imports the ESPN account already signed in to your browser. Your S
 How your connection is handled:
 
 - Cookie access is requested by the browser during installation.
-- Choosing Import sends the espn_s2 and SWID session cookies to Sunday Desk to find your teams.
+- Choosing Find my ESPN teams sends the espn_s2 and SWID session cookies to Sunday Desk to find your teams.
 - You choose leagues and confirm before the session is stored encrypted for future refreshes.
 - Disconnect ESPN in Sunday Desk to remove its saved session.
 - No passwords are collected by the connector, no general browsing history is collected, and no lineups are changed.
@@ -62,13 +65,17 @@ Certifications: data is not sold; not used or transferred for unrelated purposes
 
 1. Install the extension. The install event opens Sunday Desk setup automatically. No extra toolbar permission toggle is needed.
 2. Create a free Sunday Desk account or sign into one. No purchase is required.
-3. Sign into your own ESPN account with a current NFL fantasy team at https://www.espn.com/login/. Do not enter your ESPN password into Sunday Desk.
+3. In the same Chrome profile, sign into your own ESPN account with a current NFL fantasy team at https://www.espn.com/login/. Do not enter your ESPN password into Sunday Desk.
 4. Return to Sunday Desk setup and choose Find my ESPN teams. The disclosure immediately beside the button explains session transmission.
 5. The server discovers current NFL league memberships and verifies ownership. Choose leagues, acknowledge encrypted session storage, then confirm.
 6. Open the dashboard. Manage accounts returns to setup. Disconnect deletes the saved ESPN session from active storage and clears private cache.
 7. Without an ESPN session or current NFL teams, the app shows an actionable sign-in/no-teams message and does not save a connection.
 
 No owner ESPN account, cookie, or password is included in this submission. Reviewers may use their own test ESPN membership. If Google requests additional test access, arrange a dedicated test account; never provide a personal ESPN session.
+
+Saved reviewer instructions (the dashboard limits this field to 500 characters):
+
+Install opens Sunday Desk setup. Create a free Sunday Desk account. In the same Chrome profile, sign into your own ESPN account at https://www.espn.com/login/ with a current NFL fantasy team. Return to setup, click Find my ESPN teams, select leagues, consent to encrypted session storage, then Connect. Open the dashboard; disconnect in setup removes the saved session. No payment required. Without an ESPN team, only the sign-in/no-teams error path can be tested.
 
 ## Asset map
 
@@ -79,4 +86,4 @@ No owner ESPN account, cookie, or password is included in this submission. Revie
 
 ## Publisher-only prerequisites
 
-Complete Google's one-time publisher registration, verified contact email, 2-Step Verification, and Trader/Non-Trader declaration. The publisher must choose their legal status and any public contact information; it is not inferred here. Store review is external and may take days or longer.
+Google publisher registration is complete, and the publisher selected non-trader status. A verified public contact email is still required. The publisher chooses any public contact information. Store review is external and may take days or longer.
