@@ -26,7 +26,8 @@ export function selectSleeperProjections(
       row.category !== 'proj' ||
       row.company !== 'rotowire' ||
       !row.stats ||
-      typeof row.stats !== 'object'
+      typeof row.stats !== 'object' ||
+      Array.isArray(row.stats)
     )
       continue;
     const prior = selected.get(row.player_id);

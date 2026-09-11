@@ -1,5 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { analyze } from '../lib/fantasy/analysis.ts';
+import { playerPoints } from '../lib/fantasy/points.ts';
 import {
   fromESPN,
   fromSleeper,
@@ -311,6 +313,60 @@ const fromS = (s, proTeams = []) =>
     week,
     'owner',
   );
+void test('Sleeper zero rows participate in lineup comparison without a missing-projection warning', () => {
+  const now = Date.now();
+  const proTeams = [
+    {
+      id: 1,
+      abbrev: 'DET',
+      proGamesByScoringPeriod: {
+        [week]: [{ date: now + 3600000, gameStatus: 'scheduled' }],
+      },
+    },
+  ];
+  for (const stats of [{ adp_dd_ppr: 1000 }, {}, { rush_yd: 0, rec: 0 }]) {
+    const s = sleeper();
+    s.rosters[0].players.push('23');
+    s.projections.find((p) => p.player_id === '11').stats = stats;
+    const l = fromS(s, proTeams),
+      zero = l.players.find((p) => p.id === '11');
+    assert.equal(zero.projection, 0);
+    assert.deepEqual(playerPoints(zero, now), {
+      value: 0,
+      basis: 'projection',
+      label: 'Proj.',
+    });
+    const a = analyze(l, now);
+    assert.equal(a.complete, true);
+    assert.deepEqual(a.review, []);
+    assert.equal(a.currentTotal, 10);
+    assert.equal(a.recommendedTotal, 20);
+    assert.equal(a.gain, 10);
+    assert.equal(a.assignments[0].recommended.id, '23');
+    // A zero bench projection also counts as covered data.
+    s.projections.find((p) => p.player_id === '11').stats = {
+      rush_yd: 60,
+      rec: 4,
+    };
+    s.projections.find((p) => p.player_id === '23').stats = stats;
+    const bench = analyze(fromS(s, proTeams), now);
+    assert.equal(bench.complete, true);
+    assert.equal(bench.gain, 0);
+    assert.deepEqual(bench.review, []);
+  }
+});
+void test('an absent or malformed weekly row stays missing instead of becoming a zero projection', () => {
+  for (const stats of [null, undefined, []]) {
+    const s = sleeper();
+    s.projections.find((p) => p.player_id === '11').stats = stats;
+    assert.equal(fromS(s).players.find((p) => p.id === '11').projection, null);
+  }
+  const s = sleeper();
+  s.projections = [];
+  assert.ok(fromS(s).players.every((p) => p.projection === null));
+  s.projections = sleeper().projections.map((p) => ({ ...p, week: week + 1 }));
+  assert.ok(fromS(s).players.every((p) => p.projection === null));
+});
 void test('Sleeper AutoSubs settings do not change player locks or add warnings', () => {
   const s = sleeper();
   s.raw.roster_positions = ['FLEX', 'RB', 'BN'];

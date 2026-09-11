@@ -42,8 +42,11 @@ export function scoreSleeper(
     )
   )
     return { projection: null, partial: true };
-  if (!input || !Object.keys(input).some((k) => direct.has(k) || custom.has(k)))
+  if (!input || typeof input !== 'object' || Array.isArray(input))
     return { projection: null, partial: false };
+  // A valid weekly row may contain only metadata (for example Mendoza's ADP).
+  // Sleeper starts at zero and ignores non-scoring keys, so that is a real
+  // zero projection. Only an absent/invalid stats object is missing data.
   const stats = { ...input };
   let points = 0;
   const sumBuckets = (prefix: string) =>

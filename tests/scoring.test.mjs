@@ -82,7 +82,8 @@ void test('uses native total misses and projected field goal yardage handlers', 
 });
 void test('missing projections and unsupported or absent scoring remain unavailable', () => {
   assert.equal(points(undefined, { rec: 1 }), null);
-  assert.equal(points({ adp_dd_ppr: 10, pts_ppr: 20 }, { rec: 1 }), null);
+  assert.equal(points(null, { rec: 1 }), null);
+  assert.equal(points([], { rec: 1 }), null);
   assert.deepEqual(scoreSleeper({ rec: 5 }, {}, 1), {
     projection: null,
     partial: true,
@@ -93,6 +94,19 @@ void test('missing projections and unsupported or absent scoring remain unavaila
   });
   assert.equal(points({ rec: 5 }, { rec: Infinity }), null);
   assert.equal(points({ rec: NaN }, { rec: 1 }), null);
+});
+void test('present weekly rows without scoring-stat contributions are valid zero projections', () => {
+  for (const stats of [
+    {},
+    { adp_dd_ppr: 1000 },
+    { adp_dd_ppr: 10, pts_ppr: 20 },
+    { pass_yd: 0, pass_td: 0, pass_int: 0 },
+  ]) {
+    assert.deepEqual(
+      scoreSleeper(stats, { pass_yd: 0.04, pass_td: 4, pass_int: -2 }, 1),
+      { projection: 0, partial: false },
+    );
+  }
 });
 void test('preserves native key order and zero-bucket updates even without a bucket scoring rule', () => {
   assert.ok(

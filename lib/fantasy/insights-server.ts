@@ -34,7 +34,7 @@ export async function getInsights(
   );
   if (!connection || !target)
     throw new Error('League is not connected to this workspace.');
-  const key = `insights-lineup-v4:${userId}:${workspace.revision}:${leagueId}:${target.season}:${week}`;
+  const key = `insights-lineup-v5:${userId}:${workspace.revision}:${leagueId}:${target.season}:${week}`;
   const old = await readCache(key, userId);
   if (old && Date.now() - old.updated < (refresh ? 20000 : 180000))
     return JSON.parse(old.value);
