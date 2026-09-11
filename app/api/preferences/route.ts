@@ -1,4 +1,4 @@
-import { getChatGPTUser } from '@/app/chatgpt-auth';
+import { getChatGPTUser } from '#dashboard-auth';
 import { getPreferences, putPreferences } from '@/lib/fantasy/server';
 export async function GET() {
   const user = await getChatGPTUser();

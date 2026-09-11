@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url';
 import { sites } from '@openai/sites-vite-plugin';
 import tailwindcss from '@tailwindcss/postcss';
 import vinext from 'vinext';
@@ -45,6 +46,16 @@ export default defineConfig(async () => {
   const { cloudflare } = await import('@cloudflare/vite-plugin');
 
   return {
+    resolve: {
+      alias: {
+        '#dashboard-runtime': fileURLToPath(
+          new URL('./lib/platform/cloudflare.ts', import.meta.url),
+        ),
+        '#dashboard-auth': fileURLToPath(
+          new URL('./app/chatgpt-auth.ts', import.meta.url),
+        ),
+      },
+    },
     css: { postcss: { plugins: [tailwindcss()] } },
     server: isCodexSeatbeltSandbox
       ? { watch: { useFsEvents: false, usePolling: true } }

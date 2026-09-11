@@ -1,7 +1,8 @@
 /* Upstream providers return polymorphic JSON. This boundary normalizes it into strict League/Player types. */
 /* oxlint-disable typescript/no-explicit-any */
 import { scoreSleeper } from './scoring';
-import { env } from 'cloudflare:workers';
+import { setting, readCache, saveCache } from '#dashboard-runtime';
+export { getPreferences, putPreferences } from '#dashboard-runtime';
 import type { Dashboard, League, Player, Slot, Standing } from './types';
 
 type Raw = Record<string, any>;
@@ -31,23 +32,6 @@ const normalize = (v: unknown) =>
   (typeof v === 'string' ? v : '').replace(/[{}]/g, '').toLowerCase();
 const abbreviation = (v: string) =>
   ({ WSH: 'WAS', JAC: 'JAX', LA: 'LAR' })[v] ?? v;
-const setting = (key: string) =>
-  (env as unknown as Raw)[key] ?? process.env[key];
-
-async function readCache(key: string) {
-  return env.DB.prepare(
-    'SELECT value, updated FROM fantasy_cache WHERE key = ?',
-  )
-    .bind(key)
-    .first<{ value: string; updated: number }>();
-}
-async function saveCache(key: string, value: unknown) {
-  await env.DB.prepare(
-    'INSERT INTO fantasy_cache (key,value,updated) VALUES (?,?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated=excluded.updated',
-  )
-    .bind(key, JSON.stringify(value), Date.now())
-    .run();
-}
 async function json(url: string, cookie?: string): Promise<any> {
   const r = await fetch(url, {
     headers: cookie
@@ -589,7 +573,7 @@ export async function getDashboard(
   );
   const proTeams = proData.settings?.proTeams ?? [];
   const s2 = setting('ESPN_S2'),
-    swid = setting('ESPN_SWID'),
+    swid = setting('ESPN_SWID') ?? '',
     cookie = s2 && swid ? `espn_s2=${s2}; SWID=${swid}` : undefined;
   const raw = await Promise.allSettled(
     configured.map(async (t) =>
@@ -719,34 +703,4 @@ export async function getDashboard(
   };
   await saveCache(`dashboard:${season}:${week}`, dashboard);
   return dashboard;
-}
-export async function getPreferences(user: string) {
-  const row = await env.DB.prepare(
-    'SELECT value, updated FROM preferences WHERE user = ?',
-  )
-    .bind(user)
-    .first<{ value: string; updated: number }>();
-  return row
-    ? { ...JSON.parse(row.value), revision: row.updated }
-    : { notes: {}, reviewed: {}, revision: 0 };
-}
-export async function putPreferences(
-  user: string,
-  value: unknown,
-  revision: number,
-) {
-  const next = revision + 1;
-  const result =
-    revision === 0
-      ? await env.DB.prepare(
-          'INSERT OR IGNORE INTO preferences (user,value,updated) VALUES (?,?,?)',
-        )
-          .bind(user, JSON.stringify(value), next)
-          .run()
-      : await env.DB.prepare(
-          'UPDATE preferences SET value = ?, updated = ? WHERE user = ? AND updated = ?',
-        )
-          .bind(JSON.stringify(value), next, user, revision)
-          .run();
-  return result.meta.changes ? next : null;
 }

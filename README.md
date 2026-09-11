@@ -2,7 +2,24 @@
 
 A private fantasy football workspace for **bam6i**, bringing four Sleeper leagues and three ESPN leagues into one weekly dashboard.
 
-**Dashboard:** https://sunday-desk-bam6i.aceccb2020.chatgpt.site
+**Dashboard:** https://fantasy-football-helper-orcin.vercel.app
+
+**Existing Sites deployment:** https://sunday-desk-bam6i.aceccb2020.chatgpt.site
+
+## Vercel deployment
+
+GitHub pushes to main deploy the full dashboard to Vercel. The Vercel project uses Framework Preset **Other**, the repository root, and the build command in vercel.json. The Nitro adapter emits a Build Output API bundle in .vercel/output, including the server and static assets. Do not set an Output Directory override to dist: that directory belongs to the separate Cloudflare build.
+
+Vercel setup for this single-owner workspace:
+
+1. Enable **Deployment Protection → Vercel Authentication → All Deployments**, including production. Keep team/project access limited to the owner and do not create public sharing exceptions. Every route and static asset is protected at Vercel's edge.
+2. Connect a **private** Vercel Blob store. Its server-only BLOB_READ_WRITE_TOKEN supplies durable cache and notes storage.
+3. Configure server-only ESPN_S2 and ESPN_SWID environment variables, plus DASHBOARD_AUTH_MODE=vercel-protection, in Production and Preview.
+4. Push to main. Vercel runs pnpm build:vercel automatically. Open the current production address after the deployment is Ready; old deployment-specific addresses remain on their old build.
+
+The Vercel server does not accept ChatGPT identity headers. It relies on the owner-only Vercel protection boundary and fails closed when the explicit runtime configuration is absent. Preview data uses a separate storage namespace. Notes use origin reads and ETag conditional writes to avoid overwriting another device's changes. The existing Sites build and D1 storage remain supported through separate adapters; notes are not synchronized between the two hosts.
+
+For local Vercel build validation: pnpm build:vercel. For the existing Sites build: pnpm build. No credentials are required to compile either target.
 
 ## What you can do
 
@@ -75,6 +92,7 @@ pnpm typecheck
 pnpm lint
 pnpm test
 pnpm build
+pnpm build:vercel
 ```
 
 Tests cover assignment traps, repeated FLEX eligibility, game locks, missing/negative projections, IR/taxi/bye exclusions, stale/future/pre-draft behavior, cross-source exposure, and custom scoring. Lint applies to application code; generated shadcn components and the generated mobile hook are left intact.

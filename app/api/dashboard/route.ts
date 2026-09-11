@@ -1,4 +1,4 @@
-import { getChatGPTUser } from '@/app/chatgpt-auth';
+import { getChatGPTUser } from '#dashboard-auth';
 import { getDashboard } from '@/lib/fantasy/server';
 export async function GET(request: Request) {
   if (!(await getChatGPTUser()))

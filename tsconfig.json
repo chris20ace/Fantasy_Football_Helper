@@ -15,7 +15,9 @@
     "jsx": "react-jsx",
     "incremental": true,
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["./*"],
+      "#dashboard-runtime": ["./lib/platform/cloudflare.ts"],
+      "#dashboard-auth": ["./app/chatgpt-auth.ts"]
     }
   },
   "include": [
@@ -26,5 +28,5 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules"]
+  "exclude": ["node_modules", ".vercel", ".output", "dist"]
 }
