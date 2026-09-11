@@ -17,6 +17,7 @@ import {
   Undo2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { PlanLeagueCard } from '@/components/plan-league-card';
 import {
   buildLeagueCommand,
   comparePlanActions,
@@ -68,8 +69,6 @@ const time = (n: number) =>
     hour: 'numeric',
     minute: '2-digit',
   });
-const score = (n: number | null | undefined) =>
-  n == null ? '—' : n.toFixed(1);
 
 function ActionRow({
   action,
@@ -497,114 +496,17 @@ export default function CommandCenter({
         >
           <div className="command-section-heading">
             <div>
-              <h2 id="command-leagues-title">Every connected league</h2>
-              <p>Ready, checking or needing work—none are hidden.</p>
+              <h2 id="command-leagues-title">Your leagues</h2>
+              <p>Your teams, this week’s scores and what to do next.</p>
             </div>
           </div>
           {commands.map((c) => (
-            <article
-              className={`panel command-league command-state-${c.status}`}
-              id={`command-league-${c.league.id}`}
+            <PlanLeagueCard
               key={c.league.id}
-              tabIndex={-1}
-            >
-              <div className="command-league-top">
-                <span className={`platform ${c.league.platform}`}>
-                  {c.league.platform.toUpperCase()}
-                </span>
-                <span className="command-league-state">{c.statusLabel}</span>
-              </div>
-              <h3>{c.league.name}</h3>
-              <p className="command-team-name">{c.league.teamName}</p>
-              <p className="command-rules">
-                {c.league.scoring} · {c.league.record}
-              </p>
-              {c.status !== 'planning' && c.league.opponent && (
-                <div className="command-score">
-                  <div>
-                    <span>Official score</span>
-                    <strong>
-                      {score(c.league.actual)} <small>–</small>{' '}
-                      {score(c.league.opponent.actual)}
-                    </strong>
-                  </div>
-                  <p>vs {c.league.opponent.name}</p>
-                </div>
-              )}
-              {c.scoresPending && c.status !== 'planning' && (
-                <p className="command-score-pending">
-                  Played-player scores are updating. They are not missing
-                  projections.
-                </p>
-              )}
-              {c.actions[0] ? (
-                <button
-                  className="command-first-action"
-                  onClick={() => onNavigate(c.actions[0].destination)}
-                >
-                  <span>{c.actions[0].title}</span>
-                  <ArrowRight size={16} />
-                </button>
-              ) : (
-                <p className="command-ready-message">
-                  {c.reviewedCount
-                    ? `${c.reviewedCount} flagged ${c.reviewedCount === 1 ? 'decision' : 'decisions'} reviewed. Open this team any time to check its details.`
-                    : c.status === 'checking'
-                      ? 'Comparing your lineup, waiver options and opponent.'
-                      : c.status === 'planning'
-                        ? 'Rosters are available for reference. Weekly moves will appear when this league is active.'
-                        : 'No required changes found among the checked options. Keep your useful roster depth.'}
-                </p>
-              )}
-              <div className="command-league-links">
-                <Button
-                  variant="outline"
-                  onClick={() =>
-                    onNavigate({
-                      leagueId: c.league.id,
-                      view: 'lab',
-                      target: 'recommended-lineup',
-                    })
-                  }
-                >
-                  Lineup
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() =>
-                    onNavigate({
-                      leagueId: c.league.id,
-                      view: 'insights',
-                      target: 'team-plan-title',
-                    })
-                  }
-                >
-                  Waivers
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() =>
-                    onNavigate({
-                      leagueId: c.league.id,
-                      view: 'matchup',
-                      target: 'matchup-analysis',
-                    })
-                  }
-                >
-                  Matchup
-                </Button>
-              </div>
-              {c.actions.length > 0 && (
-                <a
-                  className="command-queue-link"
-                  href={`#command-action-${c.actions[0].id}`}
-                >
-                  Find this team’s {c.actions.length}{' '}
-                  {c.actions.length === 1 ? 'decision' : 'decisions'} in the
-                  queue <ArrowRight size={14} />
-                </a>
-              )}
-            </article>
+              command={c}
+              onNavigate={onNavigate}
+              onRetry={onRetry}
+            />
           ))}
         </aside>
       </div>
