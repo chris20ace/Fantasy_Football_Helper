@@ -1,0 +1,84 @@
+export type Platform = 'espn' | 'sleeper';
+export type Player = {
+  id: string;
+  key: string;
+  name: string;
+  position: string;
+  team: string;
+  eligible: string[];
+  slot: string | null;
+  projection: number | null;
+  actual: number | null;
+  partial: boolean;
+  injury: string;
+  bye: boolean;
+  kickoff: number | null;
+  opponent: string;
+  locked: boolean | null;
+  reserve: boolean;
+  taxi: boolean;
+};
+export type Slot = { id: string; key: string; label: string };
+export type Standing = {
+  id: string;
+  name: string;
+  wins: number;
+  losses: number;
+  ties: number;
+  points: number;
+  mine: boolean;
+};
+export type League = {
+  id: string;
+  platform: Platform;
+  name: string;
+  teamName: string;
+  url: string;
+  status: string;
+  week: number;
+  currentWeek: number;
+  season: number;
+  fetchedAt: string;
+  scoring: string;
+  source: string;
+  players: Player[];
+  slots: Slot[];
+  standings: Standing[];
+  record: string;
+  actual: number | null;
+  matchupProjection: number | null;
+  opponent: {
+    name: string;
+    actual: number | null;
+    projection: number | null;
+  } | null;
+  warnings: string[];
+  error?: string;
+  stale?: boolean;
+};
+export type Dashboard = {
+  season: number;
+  week: number;
+  currentWeek: number;
+  fetchedAt: string;
+  leagues: League[];
+  warnings: string[];
+};
+export type Assignment = {
+  slot: Slot;
+  current: Player | null;
+  recommended: Player | null;
+  locked: boolean;
+};
+export type Analysis = {
+  assignments: Assignment[];
+  currentTotal: number | null;
+  recommendedTotal: number | null;
+  gain: number | null;
+  changes: Player[];
+  removed: Player[];
+  issues: { player: Player | null; slot: string; reason: string }[];
+  complete: boolean;
+  enabled: boolean;
+  reasons: string[];
+};
