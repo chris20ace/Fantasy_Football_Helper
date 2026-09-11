@@ -39,7 +39,9 @@ For isolated local development, run node scripts/package-espn-connector.mjs --lo
 
 ESPN discovery uses the fan-profile endpoint employed by [ESPN's web client](https://cdn1.espn.net/kona/5a90d30cd38d-1.490/_next/static/commons/main-82d208d52efd2b467c49.js): GET https://fan.api.espn.com/apis/v2/fans/{encodedSWID}. The parser reads preferences[].metaData.entry for preference types 9/10, football gameId 1 and the current season. It extracts groups[0].groupId, then independently verifies team ownership in each league. This undocumented compatibility integration may change; the advanced manual form supports league IDs as a fallback.
 
-Store submission materials, icons, and a real screenshot are in store-assets. The public privacy policy is /privacy. lib/accounts/connector-release.ts controls the install link; keep it unavailable until the store listing is approved and verified installable.
+Store submission materials, icons, and a real screenshot are in store-assets. The public privacy policy is /privacy. Version 0.2.0 is pending Chrome Web Store review with automatic publication enabled. No additional app deployment is needed to enable the install button after publication: /api/connector checks Google's public update manifest for the exact extension ID, then requires a matching public listing with an Add to Chrome control. Checks use no user credentials, are cached for five minutes, and stay unavailable on failed or unrecognized responses. Setup refreshes availability while visible and when users return to the page. lib/accounts/connector-release.ts holds the fixed listing identity and fallback review state.
+
+Connector detection retries while the document_idle bridge loads, when setup regains focus, and through an explicit Check again action. It only sends readiness messages; finding teams still requires the user's button click. The submitted extension package remains unchanged during review.
 
 ## What you can do
 

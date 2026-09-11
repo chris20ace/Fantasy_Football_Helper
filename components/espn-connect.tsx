@@ -13,7 +13,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import type { ConnectedLeague, PublicConnection } from '@/lib/accounts/types';
-import { connectorRelease } from '@/lib/accounts/connector-release';
+import {
+  connectorRelease,
+  connectorStoreUrl,
+  type ConnectorRelease,
+} from '@/lib/accounts/connector-release';
+import { watchConnector } from '@/lib/accounts/connector-detection';
 type Preview = { ticket: string; leagues: ConnectedLeague[] };
 type Session = { s2: string; swid: string };
 export default function EspnConnect({
@@ -26,6 +31,8 @@ export default function EspnConnect({
   onConnected: (connections: PublicConnection[]) => void;
 }) {
   const [installed, setInstalled] = useState(false),
+    [checking, setChecking] = useState(false),
+    [release, setRelease] = useState<ConnectorRelease>(connectorRelease),
     [phase, setPhase] = useState(''),
     [error, setError] = useState(''),
     [preview, setPreview] = useState<Preview | null>(null),
@@ -33,39 +40,60 @@ export default function EspnConnect({
     [consent, setConsent] = useState(false);
   const pending = useRef<(() => void) | null>(null);
   const abort = useRef<AbortController | null>(null);
+  const probe = useRef<(() => void) | null>(null);
   useEffect(() => {
-    const id = crypto.randomUUID();
-    const receive = (event: MessageEvent) => {
-      if (
-        event.source === window &&
-        event.origin === location.origin &&
-        event.data?.type === 'SUNDAY_DESK_ESPN_PONG' &&
-        event.data.requestId === id
-      )
-        setInstalled(true);
-    };
-    window.addEventListener('message', receive);
-    // Repeat after document_idle in case the extension bridge is still loading.
-    window.postMessage(
-      { type: 'SUNDAY_DESK_ESPN_PING', requestId: id },
-      location.origin,
-    );
-    const retry = window.setTimeout(
-      () =>
-        window.postMessage(
-          { type: 'SUNDAY_DESK_ESPN_PING', requestId: id },
-          location.origin,
-        ),
-      700,
-    );
-    const stop = window.setTimeout(
-      () => window.removeEventListener('message', receive),
-      2500,
-    );
+    let controller: AbortController | null = null;
+    let disposed = false;
+    async function checkStore() {
+      if (document.visibilityState === 'hidden' || controller) return;
+      controller = new AbortController();
+      try {
+        const response = await fetch('/api/connector', {
+          signal: controller.signal,
+        });
+        if (!response.ok) return;
+        const value = (await response.json()) as ConnectorRelease;
+        if (
+          !disposed &&
+          value.status === 'published' &&
+          value.storeUrl === connectorStoreUrl
+        )
+          setRelease(value);
+        else if (
+          !disposed &&
+          value.status === 'in-review' &&
+          value.storeUrl === null
+        )
+          setRelease(connectorRelease);
+      } catch {
+        // Keep the known review state when the store check is unavailable.
+      } finally {
+        controller = null;
+      }
+    }
+    void checkStore();
+    const refresh = () => void checkStore();
+    const timer = window.setInterval(refresh, 60000);
+    window.addEventListener('focus', refresh);
+    document.addEventListener('visibilitychange', refresh);
     return () => {
-      clearTimeout(retry);
-      clearTimeout(stop);
-      window.removeEventListener('message', receive);
+      disposed = true;
+      controller?.abort();
+      clearInterval(timer);
+      window.removeEventListener('focus', refresh);
+      document.removeEventListener('visibilitychange', refresh);
+    };
+  }, []);
+  useEffect(() => {
+    const detection = watchConnector(
+      window,
+      () => setInstalled(true),
+      setChecking,
+    );
+    probe.current = detection.probe;
+    return () => {
+      detection.dispose();
+      probe.current = null;
       pending.current?.();
       abort.current?.abort();
     };
@@ -321,11 +349,10 @@ export default function EspnConnect({
                   Install once. Sunday Desk opens automatically, ready to find
                   your teams. No cookie copying or league IDs.
                 </p>
-                {connectorRelease.status === 'published' &&
-                connectorRelease.storeUrl ? (
+                {release.status === 'published' && release.storeUrl ? (
                   <a
                     className="connector-store-button"
-                    href={connectorRelease.storeUrl}
+                    href={release.storeUrl}
                     target="_blank"
                     rel="noreferrer"
                   >
@@ -334,14 +361,14 @@ export default function EspnConnect({
                 ) : (
                   <div className="connector-store-pending">
                     <strong>
-                      {connectorRelease.status === 'in-review'
+                      {release.status === 'in-review'
                         ? 'Browser-store approval pending'
                         : 'Browser-store installation is being prepared'}
                     </strong>
                     <span>
-                      The simple install button will appear once the store
-                      listing is approved. Manual setup is available below in
-                      the meantime.
+                      We check automatically. The install button appears after
+                      Google publishes the listing. Manual setup is available
+                      below in the meantime.
                     </span>
                   </div>
                 )}
@@ -356,6 +383,16 @@ export default function EspnConnect({
                     <b>3</b> Choose & connect
                   </span>
                 </div>
+                <button
+                  type="button"
+                  className="espn-signin-secondary"
+                  disabled={checking || disabled}
+                  onClick={() => probe.current?.()}
+                >
+                  {checking
+                    ? 'Checking for your connector…'
+                    : 'Already installed? Check again'}
+                </button>
               </>
             )}
           </div>
@@ -366,13 +403,16 @@ export default function EspnConnect({
           {!installed && (
             <details className="connection-help connector-install">
               <summary>
-                Manual installation while the store listing is pending{' '}
+                {release.status === 'published'
+                  ? 'Alternative: install manually'
+                  : 'Manual installation while the store listing is pending'}{' '}
                 <ChevronDown size={15} />
               </summary>
               <p>
-                This alternative uses Chrome or Edge Developer mode. Normal
-                browser-store installation will replace these steps after
-                approval.
+                This alternative uses Chrome or Edge Developer mode.
+                {release.status === 'published'
+                  ? ' The store install button above is the easiest option.'
+                  : ' Normal browser-store installation will become available after approval.'}
               </p>
               <a
                 className="connector-download"
