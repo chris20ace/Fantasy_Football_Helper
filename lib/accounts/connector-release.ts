@@ -5,6 +5,6 @@ export const connectorRelease: {
   storeUrl: string | null;
 } = {
   version: '0.2.0',
-  status: 'preparing',
+  status: 'in-review',
   storeUrl: null,
 };

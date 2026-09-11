@@ -1,9 +1,9 @@
 # Sunday Desk ESPN Connector — submission materials
 
-Status: uploaded as a completed Chrome Web Store draft. The store lists verification of a public publisher contact email as the remaining submission blocker. The item has not entered review. Do not mark the app's Install button published until the listing is approved and publicly installable.
+Status: submitted to the Chrome Web Store and confirmed Pending review on September 10, 2026. Automatic publication after approval is enabled. Do not mark the app's Install button published until the listing is approved and publicly installable.
 
 Item ID: nmnefiogkokeggmhhijpjoaheegmkjcg
-Developer draft: https://chrome.google.com/webstore/devconsole/1b42e1a7-fb0a-4c4b-b1e5-01e1d6dd4464/nmnefiogkokeggmhhijpjoaheegmkjcg/edit
+Developer dashboard: https://chrome.google.com/webstore/devconsole/1b42e1a7-fb0a-4c4b-b1e5-01e1d6dd4464/nmnefiogkokeggmhhijpjoaheegmkjcg/edit
 
 ## Listing
 
@@ -86,4 +86,4 @@ Install opens Sunday Desk setup. Create a free Sunday Desk account. In the same 
 
 ## Publisher-only prerequisites
 
-Google publisher registration is complete, and the publisher selected non-trader status. A verified public contact email is still required. The publisher chooses any public contact information. Store review is external and may take days or longer.
+Google publisher registration and public contact email verification are complete, and the publisher selected non-trader status. Store review is external and may take up to several weeks. The item is not publicly installable until approval and publication.
