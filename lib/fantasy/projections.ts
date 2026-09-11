@@ -23,10 +23,10 @@ export type InsightReport = {
   ownershipVerified: boolean;
 };
 const round = (n: number) => Math.round(n * 100) / 100;
-export function rankWaivers(
+export function eligibleWaiverCandidates(
   report: InsightReport,
   now = Date.now(),
-): WaiverPick[] {
+): AvailablePlayer[] {
   const { league } = report;
   if (
     report.projectionSource !== 'provider' ||
@@ -40,11 +40,9 @@ export function rankWaivers(
     league.status !== 'in_season'
   )
     return [];
-  const baseline = analyze(league, now);
-  if (!baseline.enabled) return [];
   const own = new Set(league.players.map((p) => p.id));
   // A league-wide ownership check occurs at the provider boundary. This second check also guards malformed payloads.
-  const candidates = report.candidates.filter(
+  return report.candidates.filter(
     (p) =>
       !own.has(p.id) &&
       !unavailable(p) &&
@@ -62,6 +60,16 @@ export function rankWaivers(
       ) &&
       league.slots.some((s) => p.eligible.includes(s.key)),
   );
+}
+export function rankWaivers(
+  report: InsightReport,
+  now = Date.now(),
+): WaiverPick[] {
+  const { league } = report;
+  const candidates = eligibleWaiverCandidates(report, now);
+  if (!candidates.length) return [];
+  const baseline = analyze(league, now);
+  if (!baseline.enabled) return [];
   // Keep the search bounded while preserving each distinct eligible-position combination.
   const perPosition = new Map<string, number>();
   const shortlist = candidates

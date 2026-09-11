@@ -6,6 +6,8 @@ import type { League, Player, Slot, Standing } from './types.ts';
 type Raw = Record<string, any>;
 const numeric = (n: unknown): number | null =>
   typeof n === 'number' && Number.isFinite(n) ? n : null;
+const count = (n: unknown): number | null =>
+  typeof n === 'number' && Number.isInteger(n) && n >= 0 ? n : null;
 const normalize = (v: unknown) =>
   (typeof v === 'string' ? v : '').replace(/[{}]/g, '').toLowerCase();
 const abbreviation = (v: string) =>
@@ -57,6 +59,8 @@ export function gameInfo(team: string, proTeams: Raw[], week: number) {
       : null;
   return {
     bye: pro?.byeWeek === week,
+    byeWeek:
+      pro && count(pro.byeWeek) && pro.byeWeek <= 18 ? pro.byeWeek : null,
     gameStatus: (pro?.byeWeek === week
       ? 'bye'
       : (game?.gameStatus ?? 'unknown')) as GameStatus,
@@ -287,6 +291,22 @@ export function fromESPN(
     fetchedAt: new Date().toISOString(),
     scoring: `${recRule === 1 ? 'PPR' : recRule === 0.5 ? 'Half PPR' : recRule === 0 ? 'Standard' : `${recRule} PPR`} · ${raw.teams.length} teams`,
     source: 'ESPN · league-scored weekly projections',
+    rosterRules: {
+      teams: count(settings.size),
+      benchSlots:
+        settings.rosterSettings?.lineupSlotCounts &&
+        !settings.rosterSettings.lineupSlotCounts['24']
+          ? count(settings.rosterSettings.lineupSlotCounts['20'] ?? 0)
+          : null,
+      irSlots: settings.rosterSettings?.lineupSlotCounts
+        ? count(settings.rosterSettings.lineupSlotCounts['21'] ?? 0)
+        : null,
+      taxiSlots: null,
+      format: 'unknown',
+      bestBall: null,
+      receptionPoints: numeric(recRule),
+      teReceptionBonus: null,
+    },
     stale: !ownRosterVerified,
     players,
     slots,
@@ -504,6 +524,34 @@ export function fromSleeper(
     fetchedAt: new Date().toISOString(),
     scoring: `${reception === 1 ? 'PPR' : reception === 0.5 ? 'Half PPR' : reception === 0 ? 'Standard' : `${reception} PPR`} · ${raw.total_rosters} teams`,
     source: 'Sleeper / Rotowire · league-scored projections',
+    rosterRules: {
+      teams: count(raw.total_rosters),
+      benchSlots: Array.isArray(raw.roster_positions)
+        ? raw.roster_positions.filter((p: string) => p === 'BN').length
+        : null,
+      irSlots: count(raw.settings?.reserve_slots),
+      taxiSlots: count(raw.settings?.taxi_slots),
+      format:
+        raw.settings?.type === 0
+          ? 'redraft'
+          : raw.settings?.type === 1
+            ? 'keeper'
+            : raw.settings?.type === 2
+              ? 'dynasty'
+              : raw.settings?.type === 3
+                ? 'special'
+                : 'unknown',
+      bestBall:
+        raw.settings?.best_ball === 1
+          ? true
+          : raw.settings?.best_ball === 0
+            ? false
+            : null,
+      receptionPoints: numeric(raw.scoring_settings?.rec),
+      teReceptionBonus: raw.scoring_settings
+        ? numeric(raw.scoring_settings.bonus_rec_te ?? 0)
+        : null,
+    },
     stale: !ownRosterVerified,
     players,
     slots,

@@ -7,6 +7,7 @@ import {
   fromSleeper,
   espnPlayer,
   selectSleeperProjections,
+  gameInfo,
 } from '../lib/fantasy/providers.ts';
 const season = 2026,
   week = 1;
@@ -313,6 +314,47 @@ const fromS = (s, proTeams = []) =>
     week,
     'owner',
   );
+void test('roster metadata distinguishes configured capacity, format and unknown rules', () => {
+  const s = sleeper();
+  s.raw.settings = { type: 2, best_ball: 0, reserve_slots: 2, taxi_slots: 3 };
+  s.raw.scoring_settings.bonus_rec_te = 0.5;
+  const rules = fromS(s).rosterRules;
+  assert.equal(rules.benchSlots, 1);
+  assert.equal(rules.irSlots, 2);
+  assert.equal(rules.taxiSlots, 3);
+  assert.equal(rules.format, 'dynasty');
+  assert.equal(rules.bestBall, false);
+  assert.equal(rules.teReceptionBonus, 0.5);
+  for (const [value, expected] of [
+    [0, 'redraft'],
+    [1, 'keeper'],
+    [3, 'special'],
+    [99, 'unknown'],
+  ]) {
+    s.raw.settings.type = value;
+    assert.equal(fromS(s).rosterRules.format, expected);
+  }
+  const e = espn();
+  e.settings.rosterSettings.lineupSlotCounts[20] = 5;
+  e.settings.rosterSettings.lineupSlotCounts[21] = 2;
+  assert.equal(fromE(e).rosterRules.benchSlots, 5);
+  assert.equal(fromE(e).rosterRules.irSlots, 2);
+  assert.equal(fromE(e).rosterRules.format, 'unknown');
+  e.settings.rosterSettings.lineupSlotCounts[24] = 1;
+  assert.equal(fromE(e).rosterRules.benchSlots, null);
+  delete e.settings.rosterSettings;
+  assert.equal(fromE(e).rosterRules.benchSlots, null);
+});
+void test('future bye metadata preserves only confirmed valid weeks', () => {
+  assert.equal(gameInfo('DET', [{ abbrev: 'DET', byeWeek: 5 }], 1).byeWeek, 5);
+  assert.equal(gameInfo('DET', [{ abbrev: 'DET', byeWeek: 5 }], 5).bye, true);
+  for (const byeWeek of [null, undefined, 0, -1, 19, 2.5, '5'])
+    assert.equal(
+      gameInfo('DET', [{ abbrev: 'DET', byeWeek }], 1).byeWeek,
+      null,
+    );
+  assert.equal(gameInfo('FA', [], 1).byeWeek, null);
+});
 void test('Sleeper zero rows participate in lineup comparison without a missing-projection warning', () => {
   const now = Date.now();
   const proTeams = [

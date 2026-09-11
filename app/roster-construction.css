@@ -1,0 +1,457 @@
+.roster-plan {
+  padding: 26px;
+  min-width: 0;
+  color: #152d4d;
+}
+.roster-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+.roster-heading .eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+.roster-heading h2 {
+  font-size: clamp(24px, 2vw, 30px);
+  line-height: 1.2;
+  margin: 10px 0;
+}
+.roster-heading p {
+  margin: 0;
+  font-size: 16px;
+  color: #52627a;
+}
+.roster-format {
+  font-size: 14px;
+  line-height: 1.5;
+  background: #edf3fd;
+  padding: 7px 12px;
+  border-radius: 7px;
+}
+.roster-inventory {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  padding: 22px 0 16px;
+}
+.roster-inventory > div {
+  display: grid;
+  gap: 8px;
+  border-left: 3px solid #d6e3f5;
+  padding-left: 12px;
+}
+.roster-inventory span {
+  font-size: 14px;
+  color: #52627a;
+}
+.roster-inventory strong {
+  font-size: 26px;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+.roster-inventory small {
+  font-size: 15px;
+  font-weight: 500;
+  color: #52627a;
+}
+.roster-space,
+.roster-footnote {
+  font-size: 14px;
+  line-height: 1.6;
+  color: #52627a;
+  margin: 0 0 20px;
+}
+.roster-decision {
+  padding: 22px;
+  background: #f1f6ff;
+  border: 1px solid #c9d9f6;
+  border-left: 4px solid #2459ed;
+  border-radius: 10px;
+}
+.roster-label {
+  display: block;
+  color: #2453b5;
+  font-size: 14px;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+}
+.roster-decision h3 {
+  font-size: 21px;
+  line-height: 1.3;
+  margin: 10px 0;
+}
+.roster-decision p {
+  font-size: 16px;
+  line-height: 1.6;
+  color: #314869;
+  margin: 0;
+  max-width: 80ch;
+}
+.roster-options {
+  display: grid;
+  gap: 12px;
+  padding-top: 18px;
+  font-size: 14px;
+}
+.roster-options > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  background: white;
+  border-radius: 6px;
+  padding: 12px 14px;
+}
+.roster-options > div > span {
+  font-weight: 650;
+  font-size: 16px;
+}
+.roster-options small {
+  font-size: 14px;
+  color: #52627a;
+  font-weight: 400;
+  line-height: 1.6;
+}
+.roster-options > div > span > small {
+  display: block;
+}
+.roster-options > div > strong {
+  flex-shrink: 0;
+  font-size: 18px;
+}
+.roster-decision-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  margin-top: 14px;
+}
+.roster-decision-links .text-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-size: 14px;
+}
+.roster-plan summary {
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 650;
+  line-height: 1.5;
+  padding: 14px 0;
+  min-height: 48px;
+}
+.roster-plan summary:focus-visible,
+.roster-plan a:focus-visible,
+.roster-plan button:focus-visible {
+  outline: 3px solid #2459ed;
+  outline-offset: 4px;
+  border-radius: 3px;
+}
+.roster-more {
+  border-top: 1px solid #cad8ee;
+  margin-top: 12px;
+}
+.roster-more > div {
+  border-top: 1px solid #dbe5f4;
+  padding: 16px 0;
+}
+.roster-more h4 {
+  margin-bottom: 6px;
+  font-size: 16px;
+}
+.roster-more p + p {
+  margin-top: 8px;
+}
+.roster-detail {
+  margin-top: 20px;
+  border-bottom: 1px solid #dbe3ef;
+}
+.roster-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  gap: 28px;
+  padding: 14px 0 24px;
+}
+.roster-grid h3 {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 18px;
+  line-height: 1.4;
+}
+.roster-grid p {
+  color: #52627a;
+  font-size: 14px;
+  line-height: 1.6;
+  margin: 8px 0 16px;
+}
+.roster-grid small {
+  display: block;
+  color: #52627a;
+  font-size: 14px;
+  line-height: 1.6;
+  margin-top: 12px;
+}
+.roster-position {
+  border-top: 1px solid #dbe3ef;
+}
+.roster-position summary {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+.roster-position summary:before {
+  display: none;
+}
+.roster-position summary strong:before {
+  content: '+';
+  margin-right: 6px;
+  color: #2459ed;
+}
+.roster-position[open] summary strong:before {
+  content: '−';
+}
+.roster-position summary span {
+  color: #52627a;
+  font-weight: 400;
+}
+.roster-position summary b {
+  color: #2453b5;
+  font-size: 14px;
+}
+.roster-position ul {
+  list-style: none;
+  padding: 0 0 10px;
+  margin: 0;
+}
+.roster-position li {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 10px 0;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.roster-position li div {
+  display: grid;
+}
+.roster-position li div:last-child {
+  flex-shrink: 0;
+  text-align: right;
+}
+.roster-position li span {
+  color: #52627a;
+}
+.roster-byes article {
+  border-left: 3px solid #cbd8eb;
+  padding: 10px 0 10px 14px;
+  margin: 14px 0;
+}
+.roster-byes article.roster-bye-gap {
+  border-left-color: #b47614;
+}
+.roster-byes article > div {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 14px;
+}
+.roster-byes article > div > span {
+  color: #52627a;
+}
+.roster-byes article p {
+  margin: 8px 0 0;
+}
+.roster-bye-empty {
+  padding: 18px;
+  background: #f5f7fb;
+}
+.roster-principles {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 22px;
+  border-top: 1px solid #dbe3ef;
+  padding: 22px 0;
+}
+.roster-principles h3 {
+  font-size: 17px;
+  line-height: 1.4;
+  margin: 0;
+}
+.roster-principles p {
+  font-size: 14px;
+  line-height: 1.7;
+  color: #52627a;
+  margin: 10px 0;
+}
+.roster-principles a {
+  color: #2453b5;
+  font-size: 14px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.roster-research > summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  color: #2453b5;
+}
+.roster-research > summary:after {
+  content: '+';
+  margin-left: auto;
+}
+.roster-research[open] > summary:after {
+  content: '−';
+}
+.roster-research > summary > span {
+  font-size: 14px;
+  color: #52627a;
+  font-weight: 400;
+}
+.roster-footnote {
+  margin: 10px 0 0;
+}
+.strategy-guide {
+  color: #253144;
+  max-width: 850px;
+  margin: 20px auto;
+}
+.strategy-guide h2 {
+  font-size: 28px;
+  line-height: 1.25;
+  margin: 24px 0;
+}
+.strategy-guide h3 {
+  font-size: 22px;
+  line-height: 1.35;
+  margin: 32px 0 14px;
+  scroll-margin-top: 24px;
+}
+.strategy-guide p,
+.strategy-guide li {
+  font-size: 16px;
+  line-height: 1.8;
+  color: #344156;
+}
+.strategy-guide p {
+  margin: 14px 0;
+}
+.strategy-guide nav {
+  border-block: 1px solid #d9dfe8;
+  padding: 18px 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+}
+.strategy-guide a {
+  color: #204eab;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  overflow-wrap: anywhere;
+}
+.strategy-guide nav a {
+  font-size: 14px;
+}
+.strategy-guide .strategy-citation {
+  font-size: 14px;
+  white-space: normal;
+}
+.strategy-guide ol {
+  margin: 20px 0 0;
+  padding-left: 24px;
+}
+.strategy-guide li {
+  padding-left: 4px;
+  margin: 14px 0;
+  scroll-margin-top: 24px;
+}
+.strategy-guide .strategy-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  line-height: 1.6;
+  margin: 20px 0;
+}
+.strategy-table th,
+.strategy-table td {
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid #d9dfe8;
+  padding: 12px;
+}
+.strategy-table th {
+  background: #f3f5f8;
+}
+#waiver-shortlist {
+  scroll-margin-top: 20px;
+}
+@media (max-width: 1000px) {
+  .roster-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .roster-principles {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 20px;
+  }
+}
+@media (max-width: 650px) {
+  .roster-plan {
+    padding: 18px 14px;
+  }
+  .roster-heading {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .roster-inventory {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 20px;
+  }
+  .roster-decision {
+    padding: 18px 14px;
+  }
+  .roster-decision h3 {
+    font-size: 20px;
+  }
+  .roster-position summary {
+    grid-template-columns: 64px minmax(0, 1fr);
+  }
+  .roster-position summary b {
+    grid-column: 2;
+  }
+  .roster-options > div {
+    padding: 10px;
+    align-items: flex-start;
+  }
+  .roster-options > div > strong small {
+    display: block;
+    text-align: right;
+  }
+  .roster-research > summary > span {
+    flex-basis: 100%;
+  }
+  .roster-research > summary:after {
+    display: none;
+  }
+  .strategy-table th,
+  .strategy-table td {
+    padding: 10px 6px;
+  }
+  .strategy-guide h2 {
+    font-size: 24px;
+  }
+  .strategy-guide h3 {
+    font-size: 20px;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}

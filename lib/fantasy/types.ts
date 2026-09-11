@@ -13,6 +13,7 @@ export type Player = {
   partial: boolean;
   injury: string;
   bye: boolean;
+  byeWeek?: number | null;
   kickoff: number | null;
   gameStatus: GameStatus;
   opponent: string;
@@ -30,6 +31,16 @@ export type Standing = {
   points: number;
   mine: boolean;
 };
+export type RosterRules = {
+  teams: number | null;
+  benchSlots: number | null;
+  irSlots: number | null;
+  taxiSlots: number | null;
+  format: 'redraft' | 'keeper' | 'dynasty' | 'special' | 'unknown';
+  bestBall: boolean | null;
+  receptionPoints: number | null;
+  teReceptionBonus: number | null;
+};
 export type League = {
   id: string;
   platform: Platform;
@@ -43,6 +54,7 @@ export type League = {
   fetchedAt: string;
   scoring: string;
   source: string;
+  rosterRules?: RosterRules;
   players: Player[];
   slots: Slot[];
   standings: Standing[];

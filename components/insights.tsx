@@ -13,6 +13,7 @@ import { analyze } from '@/lib/fantasy/analysis';
 import { rankWaivers } from '@/lib/fantasy/projections';
 import type { LeagueInsightsState } from './use-league-insights';
 import type { League } from '@/lib/fantasy/types';
+import RosterConstruction from './roster-construction';
 
 const pts = (n: number | null | undefined) => (n == null ? '—' : n.toFixed(1));
 
@@ -119,7 +120,14 @@ export default function Insights({
               snapshot.
             </div>
           )}
-          <section className="panel insight-section">
+          <RosterConstruction
+            report={valid}
+            analysis={analysis}
+            stale={stale}
+            now={now}
+            onLineup={onLineup}
+          />
+          <section id="waiver-shortlist" className="panel insight-section">
             <div className="insight-section-head">
               <div>
                 <div className="eyebrow">THE PICKUP SHORTLIST</div>
