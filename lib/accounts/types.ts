@@ -9,6 +9,7 @@ export type ProviderConnection = {
   accountId: string;
   label: string;
   leagues: ConnectedLeague[];
+  availableLeagues?: ConnectedLeague[];
   credentials?: { s2: string; swid: string };
   updatedAt: string;
 };
@@ -16,4 +17,4 @@ export type Workspace = { revision: string; connections: ProviderConnection[] };
 export type PublicConnection = Omit<
   ProviderConnection,
   'credentials' | 'accountId'
->;
+> & { revision: string };

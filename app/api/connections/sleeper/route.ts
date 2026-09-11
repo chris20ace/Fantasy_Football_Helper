@@ -8,9 +8,9 @@ import {
 import { connectProvider } from '@/lib/accounts/providers';
 import { retainLeagueSelection } from '@/lib/accounts/league-selection';
 import {
-  createEspnPreview,
-  confirmEspnPreview,
-} from '@/lib/accounts/espn-ticket';
+  createConnectionPreview,
+  confirmConnectionPreview,
+} from '@/lib/accounts/connection-ticket';
 import { bodyJSON, checkOrigin, privateHeaders } from '@/lib/accounts/request';
 import { InputError } from '@/lib/accounts/errors';
 export async function POST(request: Request) {
@@ -29,14 +29,15 @@ export async function POST(request: Request) {
       );
     const body = await bodyJSON(request, 40000);
     if (body.action === 'confirm') {
-      const preview = confirmEspnPreview(
+      const preview = confirmConnectionPreview(
         user.userId,
+        'sleeper',
         body.ticket,
         body.leagueIds,
       );
       await changeConnection(
         user.userId,
-        'espn',
+        'sleeper',
         preview.connection,
         preview.revision,
       );
@@ -46,17 +47,21 @@ export async function POST(request: Request) {
       );
     }
     if (body.action !== 'discover')
-      throw new InputError('Choose an ESPN connection action.');
+      throw new InputError('Choose a Sleeper connection action.');
     const before = await loadWorkspace(user.userId);
     const connection = retainLeagueSelection(
-      await connectProvider({ ...body, provider: 'espn' }),
-      before.connections.find((c) => c.provider === 'espn'),
+      await connectProvider({ ...body, provider: 'sleeper' }),
+      before.connections.find((c) => c.provider === 'sleeper'),
     );
     return Response.json(
       {
-        leagues: connection.availableLeagues ?? connection.leagues,
+        leagues: connection.availableLeagues,
         selectedLeagueIds: connection.leagues.map((l) => l.id),
-        ticket: createEspnPreview(user.userId, connection, before.revision),
+        ticket: createConnectionPreview(
+          user.userId,
+          connection,
+          before.revision,
+        ),
       },
       { headers: privateHeaders },
     );
@@ -66,7 +71,7 @@ export async function POST(request: Request) {
         error:
           e instanceof InputError
             ? e.message
-            : 'Could not connect ESPN. Please try again shortly.',
+            : 'Could not connect Sleeper. Please try again shortly.',
       },
       { status: 400, headers: privateHeaders },
     );

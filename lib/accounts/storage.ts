@@ -2,6 +2,7 @@ import { InputError } from './errors.ts';
 import { randomUUID, createHash } from 'node:crypto';
 import { getPool } from './db.ts';
 import { seal, unseal } from './crypto.ts';
+import { selectLeagues } from './league-selection.ts';
 import type {
   ProviderConnection,
   Workspace,
@@ -22,13 +23,39 @@ export async function loadWorkspace(user: string): Promise<Workspace> {
 export async function publicConnections(
   user: string,
 ): Promise<PublicConnection[]> {
-  return (await loadWorkspace(user)).connections.map(
-    ({ provider, label, leagues, updatedAt }) => ({
+  const workspace = await loadWorkspace(user);
+  return workspace.connections.map(
+    ({ provider, label, leagues, availableLeagues, updatedAt }) => ({
       provider,
       label,
       leagues,
+      availableLeagues: availableLeagues ?? leagues,
       updatedAt,
+      revision: workspace.revision,
     }),
+  );
+}
+export async function selectConnectionLeagues(
+  user: string,
+  provider: unknown,
+  selected: unknown,
+  revision: unknown,
+) {
+  if (
+    (provider !== 'sleeper' && provider !== 'espn') ||
+    typeof revision !== 'string' ||
+    !revision
+  )
+    throw new InputError('Reload your account connections and try again.');
+  const workspace = await loadWorkspace(user);
+  const connection = workspace.connections.find((c) => c.provider === provider);
+  if (!connection)
+    throw new InputError('Connect this account before choosing leagues.');
+  await changeConnection(
+    user,
+    provider,
+    selectLeagues(connection, selected),
+    revision,
   );
 }
 export async function changeConnection(

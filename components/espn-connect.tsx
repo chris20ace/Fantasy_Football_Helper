@@ -19,7 +19,11 @@ import {
   type ConnectorRelease,
 } from '@/lib/accounts/connector-release';
 import { watchConnector } from '@/lib/accounts/connector-detection';
-type Preview = { ticket: string; leagues: ConnectedLeague[] };
+type Preview = {
+  ticket: string;
+  leagues: ConnectedLeague[];
+  selectedLeagueIds?: string[];
+};
 type Session = { s2: string; swid: string };
 export default function EspnConnect({
   disabled,
@@ -186,7 +190,7 @@ export default function EspnConnect({
       })) as Preview;
       form?.reset();
       setPreview(result);
-      setSelected(result.leagues.map((l) => l.id));
+      setSelected(result.selectedLeagueIds ?? result.leagues.map((l) => l.id));
     } catch (e) {
       if (!(e instanceof DOMException && e.name === 'AbortError'))
         setError(e instanceof Error ? e.message : 'Import failed. Try again.');

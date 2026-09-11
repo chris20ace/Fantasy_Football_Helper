@@ -312,6 +312,73 @@
 .connected-leagues strong {
   font-size: 14px;
 }
+.league-picker {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+.league-picker legend {
+  font-size: 16px;
+  font-weight: 650;
+  color: #243650;
+  margin-bottom: 6px;
+}
+.league-picker-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 13px;
+}
+.league-picker-actions span {
+  margin-right: auto;
+  color: #536580;
+}
+.league-picker-actions button {
+  background: none;
+  border: 0;
+  color: #2459ed;
+  padding: 8px 0;
+  cursor: pointer;
+}
+.league-picker button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.league-picker .league-choices {
+  max-height: 380px;
+  overflow-y: auto;
+}
+.league-picker .league-choices label {
+  min-height: 52px;
+}
+.league-picker .league-choices input {
+  accent-color: #2459ed;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+.league-picker .league-choices strong {
+  overflow-wrap: anywhere;
+}
+.league-picker input:focus-visible,
+.league-picker button:focus-visible {
+  outline: 2px solid #2459ed;
+  outline-offset: 4px;
+}
+.league-manager p {
+  font-size: 14px;
+  line-height: 1.6;
+  color: #536580;
+  margin: 0;
+}
+.league-manager .league-empty {
+  font-weight: 600;
+}
+.league-manager > button {
+  width: 100%;
+}
 .connected-leagues ul {
   padding: 0;
   list-style: none;

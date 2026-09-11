@@ -10,9 +10,10 @@ import {
   Zap,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import SignOut from './sign-out';
 import EspnConnect from './espn-connect';
+import SleeperConnect from './sleeper-connect';
+import LeagueManager from './league-manager';
 import type { PublicConnection } from '@/lib/accounts/types';
 export default function ConnectionSetup({
   name,
@@ -43,6 +44,10 @@ export default function ConnectionSetup({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
+      if (r.status === 401) {
+        window.location.assign('/login?next=/setup');
+        return;
+      }
       const v = (await r.json()) as {
         connections: PublicConnection[];
         error?: string;
@@ -54,7 +59,9 @@ export default function ConnectionSetup({
       setSuccess(
         body.action === 'disconnect'
           ? 'Account disconnected. Its saved credentials have been removed.'
-          : 'Your leagues are ready. Open your dashboard when you are done.',
+          : body.action === 'select-leagues'
+            ? 'League choices saved. Your dashboard will show only your selected leagues.'
+            : 'Your leagues are ready. Open your dashboard when you are done.',
       );
       if (body.action === 'claim') {
         setRestore(undefined);
@@ -168,20 +175,22 @@ export default function ConnectionSetup({
                     : 'Use your ESPN session to read leagues you belong to. Your ESPN password is never needed.'}
                 </p>
                 {connection && (
-                  <div className="connected-leagues">
-                    <strong>
-                      {connection.label} · {connection.leagues.length} leagues
-                    </strong>
-                    <ul>
-                      {connection.leagues.map((l) => (
-                        <li key={l.id}>
-                          <Check size={13} />
-                          {l.name}
-                          <span>{l.season}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
+                  <LeagueManager
+                    key={`${provider}:${connection.updatedAt}`}
+                    connection={connection}
+                    disabled={!!busy}
+                    onSave={(ids) =>
+                      void update(
+                        {
+                          action: 'select-leagues',
+                          provider,
+                          leagueIds: ids,
+                          revision: connection.revision,
+                        },
+                        `${provider}:leagues`,
+                      )
+                    }
+                  />
                 )}
                 {provider === 'espn' ? (
                   <EspnConnect
@@ -196,43 +205,18 @@ export default function ConnectionSetup({
                     }}
                   />
                 ) : (
-                  <form
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      const form = e.currentTarget,
-                        values = new FormData(form);
-                      void update(
-                        { provider, username: values.get('username') },
-                        provider,
-                        form,
+                  <SleeperConnect
+                    username={connection?.label}
+                    disabled={!!busy}
+                    onBusy={(value) => setBusy(value ? 'sleeper' : '')}
+                    onConnected={(value) => {
+                      setConnections(value);
+                      setError('');
+                      setSuccess(
+                        'Your selected Sleeper leagues are connected.',
                       );
                     }}
-                  >
-                    <label htmlFor="username">
-                      Sleeper username
-                      <Input
-                        id="username"
-                        name="username"
-                        required
-                        autoComplete="off"
-                        placeholder="Your username"
-                        maxLength={40}
-                        defaultValue={connection?.label}
-                      />
-                    </label>
-                    <Button
-                      type="submit"
-                      disabled={!!busy}
-                      className="connect-submit"
-                    >
-                      {busy === provider
-                        ? 'Checking your leagues…'
-                        : connection
-                          ? 'Reconnect & refresh leagues'
-                          : 'Connect Sleeper'}
-                      <ArrowRight size={16} />
-                    </Button>
-                  </form>
+                  />
                 )}
                 {connection && (
                   <div className="disconnect-row">

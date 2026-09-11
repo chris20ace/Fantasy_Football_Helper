@@ -6,8 +6,10 @@ import {
   changeConnection,
   connectionRateLimit,
   claimWorkspace,
+  selectConnectionLeagues,
 } from '@/lib/accounts/storage';
 import { connectProvider } from '@/lib/accounts/providers';
+import { retainLeagueSelection } from '@/lib/accounts/league-selection';
 import { checkOrigin, bodyJSON, privateHeaders } from '@/lib/accounts/request';
 export async function GET() {
   const user = await getChatGPTUser();
@@ -43,6 +45,13 @@ export async function POST(request: Request) {
       )
         throw new Error('This restore link is invalid.');
       await claimWorkspace(user.userId, body.token);
+    } else if (body.action === 'select-leagues') {
+      await selectConnectionLeagues(
+        user.userId,
+        body.provider,
+        body.leagueIds,
+        body.revision,
+      );
     } else {
       const before = await loadWorkspace(user.userId);
       if (body.action === 'disconnect') {
@@ -59,7 +68,10 @@ export async function POST(request: Request) {
         await changeConnection(
           user.userId,
           connection.provider,
-          connection,
+          retainLeagueSelection(
+            connection,
+            before.connections.find((c) => c.provider === connection.provider),
+          ),
           before.revision,
         );
       }

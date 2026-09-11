@@ -430,7 +430,7 @@ export default function FantasyDashboard({
                   ? 'Connected'
                   : 'Workspace'}
             </span>
-            <SetupLink className="account-link">Manage accounts</SetupLink>
+            <SetupLink className="account-link">Manage leagues</SetupLink>
             <span className="avatar" title={displayName}>
               {displayName
                 .split(/\s+/)
@@ -1691,7 +1691,7 @@ function Connections({
             <div className="eyebrow">LIVE DATA, CLEAR STATUS</div>
             <h2>Your league connections</h2>
             <SetupLink className="account-link">
-              Add or manage accounts →
+              Choose leagues & manage accounts →
             </SetupLink>
           </div>
           <Button variant="outline" onClick={onRefresh} disabled={loading}>
