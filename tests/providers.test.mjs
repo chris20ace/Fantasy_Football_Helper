@@ -297,7 +297,7 @@ const sleeper = () => ({
     stats: { rush_yd: 60, rec: 4 },
   })),
 });
-const fromS = (s) =>
+const fromS = (s, proTeams = []) =>
   fromSleeper(
     s.raw,
     s.rosters,
@@ -305,12 +305,52 @@ const fromS = (s) =>
     s.users,
     s.details,
     s.projections,
-    [],
+    proTeams,
     week,
     season,
     week,
     'owner',
   );
+void test('Sleeper AutoSubs settings do not change player locks or add warnings', () => {
+  const s = sleeper();
+  s.raw.roster_positions = ['FLEX', 'RB', 'BN'];
+  s.details['11'] = {
+    full_name: 'Played WR',
+    position: 'WR',
+    fantasy_positions: ['WR'],
+    team: 'LAR',
+  };
+  const proTeams = [
+    {
+      id: 1,
+      abbrev: 'LAR',
+      proGamesByScoringPeriod: {
+        [week]: [{ date: Date.now() - 3600000, gameStatus: 'final' }],
+      },
+    },
+    {
+      id: 2,
+      abbrev: 'DET',
+      proGamesByScoringPeriod: {
+        [week]: [{ date: Date.now() + 3600000, gameStatus: 'scheduled' }],
+      },
+    },
+  ];
+  s.raw.settings.max_subs = 0;
+  const baseline = fromS(s, proTeams);
+  assert.deepEqual(
+    baseline.players.map((p) => p.locked),
+    [true, false],
+  );
+  assert.equal(baseline.players[0].actual, 3);
+  for (const max_subs of [1, 3]) {
+    s.raw.settings.max_subs = max_subs;
+    const enabled = fromS(s, proTeams);
+    assert.deepEqual(enabled.players, baseline.players);
+    assert.deepEqual(enabled.warnings, baseline.warnings);
+    assert.ok(!JSON.stringify(enabled).match(/autoSub|lockReason/i));
+  }
+});
 void test('Sleeper co-owned roster, matchup zero, empty slot index and score override are preserved', () => {
   const s = sleeper(),
     l = fromS(s);

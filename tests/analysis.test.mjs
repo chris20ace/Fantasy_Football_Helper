@@ -1,7 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { analyze, exposure } from '../lib/fantasy/analysis.ts';
-import { applySleeperAutoSubLocks } from '../lib/fantasy/autosubs.ts';
 const now = 1000;
 const player = (id, projection, eligible, extra = {}) => ({
   id,
@@ -286,7 +285,7 @@ void test('pending actuals and unconfirmed game status are named instead of bein
   assert.ok(!a.review.some((r) => r.kind === 'projection'));
 });
 
-void test('a played FLEX narrows AutoSub checks without freezing QB, kicker, or defense', () => {
+void test('a played FLEX stays locked without restricting upcoming players at any eligible position', () => {
   const players = [
     player('Davante Adams', null, ['WR', 'FLEX'], {
       position: 'WR',
@@ -306,29 +305,8 @@ void test('a played FLEX narrows AutoSub checks without freezing QB, kicker, or 
     player('IR', null, ['WR', 'FLEX'], { reserve: true }),
   ];
   const before = JSON.stringify(players);
-  const normalized = applySleeperAutoSubLocks(players, now);
-  assert.equal(
-    JSON.stringify(players),
-    before,
-    'The AutoSub gate must not mutate provider input',
-  );
-  for (const name of [
-    'Dak Prescott',
-    'Jared Goff',
-    'Fernando Mendoza',
-    'kicker',
-    'defense',
-  ])
-    assert.equal(normalized.find((p) => p.id === name).locked, false, name);
-  for (const name of ['RB starter', 'RB bench']) {
-    assert.equal(normalized.find((p) => p.id === name).locked, null, name);
-    assert.match(
-      normalized.find((p) => p.id === name).lockReason,
-      /Davante Adams/,
-    );
-  }
   const a = analyze(
-    league(normalized, ['FLEX', 'QB', 'K', 'DEF', 'RB'], {
+    league(players, ['FLEX', 'QB', 'K', 'DEF', 'RB'], {
       platform: 'sleeper',
     }),
     now,
@@ -336,7 +314,13 @@ void test('a played FLEX narrows AutoSub checks without freezing QB, kicker, or 
   assert.equal(a.assignments[0].recommended.id, 'Davante Adams');
   assert.equal(a.assignments[0].recommended.actual, 5.6);
   assert.equal(a.assignments[1].recommended.id, 'Jared Goff');
-  assert.equal(a.assignments[4].recommended.id, 'RB starter');
+  assert.equal(a.assignments[4].recommended.id, 'RB bench');
+  assert.equal(a.review.filter((r) => r.kind === 'lock').length, 0);
+  assert.equal(
+    JSON.stringify(players),
+    before,
+    'Analysis does not mutate the snapshot',
+  );
   assert.deepEqual(a.coverage, { starterScores: 5, starterSlots: 5 });
   assert.equal(a.gain, null);
   assert.deepEqual(
@@ -346,33 +330,7 @@ void test('a played FLEX narrows AutoSub checks without freezing QB, kicker, or 
   assert.ok(!a.review.some((r) => r.player.id === 'Davante Adams'));
 });
 
-void test('AutoSub checks consider all eligible slots and stay conservative for unknown eligibility and superflex', () => {
-  const played = player('played', 5, ['WR', 'FLEX', 'SUPER_FLEX'], {
-    position: 'WR',
-    slot: 'WR:0',
-    gameStatus: 'final',
-    locked: true,
-  });
-  const qb = player('QB', 20, ['QB', 'SUPER_FLEX'], { position: 'QB' });
-  assert.equal(applySleeperAutoSubLocks([played, qb], now)[1].locked, null);
-  const missing = { ...played, eligible: [], position: '—' };
-  assert.equal(applySleeperAutoSubLocks([missing, qb], now)[1].locked, null);
-  assert.equal(
-    applySleeperAutoSubLocks([{ ...played, reserve: true }, qb], now)[1].locked,
-    false,
-  );
-  assert.equal(
-    applySleeperAutoSubLocks([{ ...played, taxi: true }, qb], now)[1].locked,
-    false,
-  );
-  const beforeKickoff = { ...played, gameStatus: 'scheduled', locked: false };
-  assert.equal(
-    applySleeperAutoSubLocks([beforeKickoff, qb], now)[1].locked,
-    false,
-  );
-});
-
-void test('AutoSub eligibility is rechecked when kickoff passes inside a fresh snapshot', () => {
+void test('kickoff locks only the player whose own game starts inside a fresh snapshot', () => {
   const l = league(
     [
       player('early', 5, ['RB', 'FLEX'], {
@@ -387,14 +345,14 @@ void test('AutoSub eligibility is rechecked when kickoff passes inside a fresh s
       player('later bench', 20, ['RB', 'FLEX'], { kickoff: 2000 }),
     ],
     ['RB', 'FLEX'],
-    { autoSubs: true, platform: 'sleeper' },
+    { platform: 'sleeper' },
   );
   assert.ok(analyze(l, 900).changes.some((p) => p.id === 'later bench'));
   const after = analyze(l, 1100);
   assert.equal(after.assignments[0].recommended.id, 'early');
-  assert.equal(after.assignments[1].recommended.id, 'later starter');
-  assert.equal(after.review.filter((r) => r.kind === 'lock').length, 2);
-  assert.equal(after.gain, null);
+  assert.equal(after.assignments[1].recommended.id, 'later bench');
+  assert.equal(after.review.filter((r) => r.kind === 'lock').length, 0);
+  assert.equal(after.gain, 12);
   assert.equal(
     l.players[1].locked,
     false,

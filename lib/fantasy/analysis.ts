@@ -1,6 +1,5 @@
 import type { Analysis, League, Player } from './types';
 import { playerPoints, isLocked } from './points.ts';
-import { applySleeperAutoSubLocks } from './autosubs.ts';
 export { isLocked } from './points.ts';
 export const unavailable = (p: Player) =>
   p.gameStatus === 'canceled' ||
@@ -18,16 +17,7 @@ export function total(
     ? null
     : values.reduce<number>((sum, v) => sum + v!, 0);
 }
-export function analyze(
-  league: League,
-  now = Date.now(),
-  newPlayerId?: string,
-): Analysis {
-  if (league.autoSubs)
-    league = {
-      ...league,
-      players: applySleeperAutoSubLocks(league.players, now, newPlayerId),
-    };
+export function analyze(league: League, now = Date.now()): Analysis {
   const current = league.slots.map(
     (s) => league.players.find((p) => p.slot === s.id) ?? null,
   );
@@ -128,8 +118,7 @@ export function analyze(
     if (p.locked === null && !isLocked(p, now) && (!unavailable(p) || slot))
       add(
         'lock',
-        p.lockReason ??
-          'Lineup eligibility could not be confirmed. Verify the lock in your league app.',
+        'Lineup eligibility could not be confirmed. Verify the lock in your league app.',
       );
   }
   reasons.push(

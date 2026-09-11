@@ -55,7 +55,7 @@ const report = (players, candidates, extra = {}) => ({
   warnings: [],
   projectionSource: 'provider',
 });
-void test('unrostered additions cannot be existing AutoSubs but owned uncertain partners remain held', () => {
+void test('waivers can improve an upcoming FLEX while a played WR stays fixed', () => {
   const played = player('played WR', null, {
     position: 'WR',
     eligible: ['WR', 'FLEX'],
@@ -66,7 +66,6 @@ void test('unrostered additions cannot be existing AutoSubs but owned uncertain 
   });
   const candidate = player('available RB', 15, { eligible: ['RB', 'FLEX'] });
   const r = report([played], [candidate], {
-    autoSubs: true,
     slots: [
       { id: 'WR:0', key: 'WR', label: 'WR' },
       { id: 'FLEX:1', key: 'FLEX', label: 'FLEX' },
@@ -77,12 +76,13 @@ void test('unrostered additions cannot be existing AutoSubs but owned uncertain 
     player('owned FLEX', 8, { eligible: ['RB', 'FLEX'], slot: 'FLEX:1' }),
   );
   const pick = rankWaivers(r, now)[0];
+  assert.equal(pick.fills, 'FLEX');
+  assert.equal(pick.gain, 7);
   assert.equal(
-    pick.fills,
-    null,
-    'Adding an unpaired player does not unlock an existing uncertain starter',
+    analyze({ ...r.league, players: [...r.league.players, candidate] }, now)
+      .assignments[0].recommended.id,
+    played.id,
   );
-  assert.equal(pick.gain, null);
 });
 void test('CeeDee Lamb stays ahead of Dalton Schultz using provider projections without any history', () => {
   const r = report(

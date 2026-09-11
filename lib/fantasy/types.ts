@@ -17,8 +17,6 @@ export type Player = {
   gameStatus: GameStatus;
   opponent: string;
   locked: boolean | null;
-  lockReason?: string;
-  autoSubLock?: true;
   reserve: boolean;
   taxi: boolean;
 };
@@ -35,7 +33,6 @@ export type Standing = {
 export type League = {
   id: string;
   platform: Platform;
-  autoSubs?: boolean;
   name: string;
   teamName: string;
   url: string;

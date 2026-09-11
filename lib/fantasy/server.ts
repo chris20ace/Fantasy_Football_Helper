@@ -178,7 +178,7 @@ export async function getDashboard(
     '';
   const espn = workspace.connections.find((c) => c.provider === 'espn');
   const namespace =
-    'user-lineup-v3:' + encodeURIComponent(userId) + ':' + workspace.revision;
+    'user-lineup-v4:' + encodeURIComponent(userId) + ':' + workspace.revision;
   if (!configured.length)
     return {
       season: new Date().getFullYear(),

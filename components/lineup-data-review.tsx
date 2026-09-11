@@ -43,9 +43,8 @@ export default function LineupDataReview({
             {locks.length} player{locks.length === 1 ? ' needs' : 's need'} a
             lock check.
           </strong>{' '}
-          {locks.some((r) => r.player.lockReason?.includes('AutoSub'))
-            ? 'Sleeper AutoSubs pairings are not available through this connection. Potentially paired players are held for review; this does not mean all their games have started.'
-            : 'Their lineup eligibility is unconfirmed. Verify these players in your league app before making changes.'}
+          Their lineup eligibility is unconfirmed. Verify these players in your
+          league app before making changes.
         </p>
       )}
       {(remaining.length > 0 || locks.length > 0) && (

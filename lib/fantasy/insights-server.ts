@@ -34,7 +34,7 @@ export async function getInsights(
   );
   if (!connection || !target)
     throw new Error('League is not connected to this workspace.');
-  const key = `insights-lineup-v3:${userId}:${workspace.revision}:${leagueId}:${target.season}:${week}`;
+  const key = `insights-lineup-v4:${userId}:${workspace.revision}:${leagueId}:${target.season}:${week}`;
   const old = await readCache(key, userId);
   if (old && Date.now() - old.updated < (refresh ? 20000 : 180000))
     return JSON.parse(old.value);
@@ -219,7 +219,7 @@ export async function getInsights(
       currentWeek,
       connection.accountId,
     );
-    // Reuse the exact provider normalization for eligibility, schedules, injury labels and AutoSubs gates.
+    // Reuse the exact provider normalization for eligibility, schedules and injury labels.
     const candidateRoster = {
       ...myRoster,
       players: [...shortlist],
@@ -228,7 +228,7 @@ export async function getInsights(
       taxi: [],
     };
     const candidateLeague = fromSleeper(
-      { ...raw, settings: { ...raw.settings, max_subs: 0 } },
+      raw,
       [candidateRoster],
       [],
       users,
@@ -240,9 +240,6 @@ export async function getInsights(
       currentWeek,
       connection.accountId,
     );
-    // League-wide ownership is checked below. Unrostered players cannot be
-    // members of this team's existing AutoSub pairs; the optimizer still holds
-    // any uncertain owned slots when it evaluates adding an available player.
     candidates = candidateLeague.players
       .filter(
         (p) =>

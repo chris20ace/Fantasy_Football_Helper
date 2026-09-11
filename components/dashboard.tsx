@@ -1886,8 +1886,8 @@ function Connections({
         </p>
         <p>
           <strong>Game locks:</strong> ESPN roster locks and scheduled NFL
-          kickoffs. Sleeper AutoSubs can add constraints; confirm them in
-          Sleeper.
+          kickoffs keep started players in their submitted slots. Players whose
+          games have not started remain available for comparison.
         </p>
         <p>
           <strong>Private access:</strong> ESPN sessions stay on the server.
