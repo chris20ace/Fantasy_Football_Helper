@@ -28,6 +28,7 @@ import PlayerScore from './player-score';
 import LineupDataReview from './lineup-data-review';
 import { gameLabel, playerPoints, scoreProgress } from '@/lib/fantasy/points';
 import type { LeagueInsightsState } from './use-league-insights';
+import { starterTarget } from '@/lib/fantasy/command-center';
 
 const pts = (value: number | null | undefined) =>
   value == null ? '—' : value.toFixed(1);
@@ -279,7 +280,11 @@ export default function WeeklyPlan({
                   mode === 'plan' ? 'plan-actions-grid' : 'plan-lineup-focus'
                 }
               >
-                <section className="panel recommended-lineup">
+                <section
+                  className="panel recommended-lineup"
+                  id="recommended-lineup"
+                  tabIndex={-1}
+                >
                   <div className="section-head">
                     <div>
                       <h2>
@@ -379,6 +384,12 @@ export default function WeeklyPlan({
                             /QUESTIONABLE|DOUBTFUL|DAY_TO_DAY/i.test(p.injury);
                           return (
                             <li
+                              id={
+                                row.current
+                                  ? starterTarget(row.current.id)
+                                  : undefined
+                              }
+                              tabIndex={-1}
                               className={changed ? 'lineup-change' : ''}
                               key={row.slot.id}
                             >

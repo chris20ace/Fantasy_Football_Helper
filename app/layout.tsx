@@ -6,6 +6,7 @@ import './responsive.css';
 import './team-management.css';
 import './matchup.css';
 import './roster-construction.css';
+import './command-center.css';
 export const metadata: Metadata = {
   title: 'Sunday Desk | Your weekly fantasy edge',
   description: 'Your private fantasy football lineup and league workspace.',

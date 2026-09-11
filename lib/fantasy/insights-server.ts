@@ -8,17 +8,16 @@ import {
   espnPlayer,
   fromESPN,
   fromSleeper,
-  getDashboard,
+  sleeperProjectionRows,
   json,
 } from './server';
 import { scoreSleeper } from './scoring';
 import { selectSleeperProjections } from './providers';
 import type { InsightReport, AvailablePlayer } from './projections.ts';
+import type { League } from './types.ts';
 type Raw = Record<string, any>;
 const SLEEPER = 'https://api.sleeper.app';
 const ESPN = 'https://lm-api-reads.fantasy.espn.com/apis/v3/games/ffl/seasons';
-const positionsQuery =
-  'season_type=regular&position[]=QB&position[]=RB&position[]=WR&position[]=TE&position[]=K&position[]=DEF';
 export async function getInsights(
   userId: string,
   leagueId: string,
@@ -38,11 +37,25 @@ export async function getInsights(
   const old = await readCache(key, userId);
   if (old && Date.now() - old.updated < (refresh ? 20000 : 180000))
     return JSON.parse(old.value);
-  const dashboard = await getDashboard(userId, week, refresh);
-  const initial = dashboard.leagues.find((l) => l.id === leagueId);
-  if (!initial || initial.error || initial.stale)
-    throw new Error('Refresh this league connection before loading insights.');
-  const { season, currentWeek } = dashboard;
+  // Each report reads only its target league. An all-league scan must not
+  // recursively trigger another full-workspace dashboard scan per request.
+  const state = await cached('nfl-state', 300000, () =>
+    json(`${SLEEPER}/v1/state/nfl`),
+  );
+  const season = Number(state.league_season ?? state.season);
+  const rawWeek = Number(state.display_week ?? state.week);
+  if (
+    !Number.isInteger(season) ||
+    season < 2000 ||
+    season > 2100 ||
+    !Number.isFinite(rawWeek) ||
+    !Number.isInteger(rawWeek) ||
+    rawWeek < 0 ||
+    rawWeek > 23 ||
+    target.season !== season
+  )
+    throw new Error('Current NFL season context could not be verified.');
+  const currentWeek = Math.max(1, Math.min(18, rawWeek || 1));
   const proData = await cached(`schedule:${season}`, 3600000, () =>
     json(`${ESPN}/${season}?view=proTeamSchedules_wl`),
   );
@@ -52,7 +65,7 @@ export async function getInsights(
     week,
   );
   const warnings: string[] = [];
-  let league = initial;
+  let league: League;
   let candidates: AvailablePlayer[] = [],
     ownershipVerified = false;
   let evaluated = 0;
@@ -135,7 +148,7 @@ export async function getInsights(
       json(`${SLEEPER}/v1/league/${target.id}/rosters`),
       json(`${SLEEPER}/v1/league/${target.id}/matchups/${week}`),
       json(`${SLEEPER}/v1/league/${target.id}/users`),
-      json(`${SLEEPER}/projections/nfl/${season}/${week}?${positionsQuery}`),
+      sleeperProjectionRows(season, week, refresh),
     ]);
     if (!Array.isArray(projectionRows))
       throw new Error('Sleeper projections are temporarily unavailable.');
@@ -203,7 +216,7 @@ export async function getInsights(
     const details = await catalog(
       ids,
       refresh,
-      `insight-catalog:${userId}:${workspace.revision}`,
+      `insight-catalog:${userId}:${workspace.revision}:${leagueId}`,
       userId,
     );
     league = fromSleeper(
@@ -256,6 +269,8 @@ export async function getInsights(
       'Scanned up to 40 leaders per position using Sleeper projections and your league scoring. Sleeper confirms unrostered status; claim timing and pending claims must be checked in the league.',
     );
   }
+  if (league.stale || league.error)
+    throw new Error('This league’s roster assignments could not be verified.');
   if (!ownershipVerified) {
     candidates = [];
     warnings.push(

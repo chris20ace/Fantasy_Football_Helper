@@ -5,7 +5,9 @@ import Insights from './insights';
 import WeeklyPlan from './weekly-plan';
 import PlayerScore from './player-score';
 import { gameLabel, playerPoints } from '@/lib/fantasy/points';
-import { useLeagueInsights } from './use-league-insights';
+import { useWorkspaceInsights } from './use-workspace-insights';
+import CommandCenter from './command-center';
+import type { PlanDestination } from '@/lib/fantasy/command-center';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowRight,
@@ -236,8 +238,10 @@ function Kickoff({ player, now }: { player: Player; now: number }) {
 
 export default function FantasyDashboard({
   displayName,
+  workspaceId,
 }: {
   displayName: string;
+  workspaceId: string;
 }) {
   const [data, setData] = useState<Dashboard | null>(null),
     [loading, setLoading] = useState(true),
@@ -255,8 +259,15 @@ export default function FantasyDashboard({
     [saving, setSaving] = useState(false),
     [notice, setNotice] = useState(''),
     [search, setSearch] = useState(''),
-    [position, setPosition] = useState('ALL'),
-    [platform, setPlatform] = useState('all');
+    [position, setPosition] = useState('ALL');
+  const [protectedByLeague, setProtectedByLeague] = useState<
+    Record<string, string[]>
+  >({});
+  const [navigation, setNavigation] = useState<
+    (PlanDestination & { token: number }) | null
+  >(null);
+  const navigationCounter = useRef(0),
+    focusedNavigation = useRef(0);
   const controller = useRef<AbortController | null>(null);
   const load = useCallback(
     async (refresh = false) => {
@@ -271,12 +282,14 @@ export default function FantasyDashboard({
         const response = await fetch(`/api/dashboard?${params}`, {
           signal: request.signal,
         });
+        if (request.signal.aborted || controller.current !== request) return;
         if (response.status === 401) {
           setData(null);
           window.location.replace('/login');
           return;
         }
         const value = (await response.json()) as Dashboard & { error?: string };
+        if (request.signal.aborted || controller.current !== request) return;
         if (!response.ok)
           throw new Error(value.error ?? 'Unable to sync your leagues.');
         if (!value.leagues.length) {
@@ -334,9 +347,6 @@ export default function FantasyDashboard({
         ),
       );
   }, []);
-  useEffect(() => {
-    window.scrollTo({ top: 0, behavior: 'instant' });
-  }, [view, selected]);
   const save = async (value: Preferences) => {
     if (!prefReady) return;
     setSaving(true);
@@ -375,53 +385,78 @@ export default function FantasyDashboard({
     setSelected(id);
     setView('lab');
   };
-  const synced = leagues.filter((l) => !l.error && l.players.length),
-    issues = leagues
-      .flatMap((l) => {
-        const a = analyses.get(l.id)!;
-        return a.enabled
-          ? a.issues.map((issue) => ({
-              league: l,
-              ...issue,
-              locked: issue.player ? isLocked(issue.player, now) : false,
-            }))
-          : [];
-      })
-      .sort(
-        (a, b) =>
-          Number(a.locked) - Number(b.locked) ||
-          Number(a.reason.startsWith('Monitor')) -
-            Number(b.reason.startsWith('Monitor')) ||
-          (a.player?.kickoff ?? Infinity) - (b.player?.kickoff ?? Infinity),
-      );
-  const upgrades = leagues.filter((l) => {
-    const a = analyses.get(l.id)!;
-    return a.enabled && a.changes.length > 0;
-  });
+  const synced = leagues.filter((l) => !l.error && l.players.length);
   const portfolio = useMemo(() => exposure(leagues), [leagues]);
   const selectedWeek = week ?? data?.week ?? 1,
     current = selectedWeek === data?.currentWeek;
-  const insightState = useLeagueInsights(
-    active?.id ?? '',
+  const workspaceInsights = useWorkspaceInsights(
+    data?.week === selectedWeek ? leagues : [],
     selectedWeek,
     data?.fetchedAt ?? '',
+    workspaceId,
+    active?.id ?? '',
   );
+  const insightState = workspaceInsights.stateFor(active?.id ?? '');
+  const navigateFromPlan = (destination: PlanDestination) => {
+    if (!leagues.some((l) => l.id === destination.leagueId)) return;
+    setSelected(destination.leagueId);
+    setView(destination.view);
+    setNavigation({ ...destination, token: ++navigationCounter.current });
+  };
+  const protectPlayer = (leagueId: string, id: string) =>
+    setProtectedByLeague((old) => {
+      const ids = old[leagueId] ?? [];
+      return {
+        ...old,
+        [leagueId]: ids.includes(id)
+          ? ids.filter((x) => x !== id)
+          : [...ids, id],
+      };
+    });
+  useEffect(() => {
+    if (
+      navigation &&
+      navigation.view === view &&
+      navigation.leagueId === active?.id &&
+      navigation.token !== focusedNavigation.current
+    )
+      return;
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  }, [view, selected, navigation, active?.id]);
+  useEffect(() => {
+    if (
+      !navigation ||
+      navigation.token === focusedNavigation.current ||
+      navigation.view !== view ||
+      navigation.leagueId !== active?.id
+    )
+      return;
+    if (view !== 'sources' && insightState.loading) return;
+    const frame = requestAnimationFrame(() => {
+      const element = navigation.target
+        ? document.getElementById(navigation.target)
+        : null;
+      const target = element ?? document.getElementById('main-content');
+      if (!target) return;
+      for (
+        let parent = target.parentElement;
+        parent;
+        parent = parent.parentElement
+      )
+        if (parent instanceof HTMLDetailsElement) parent.open = true;
+      target.setAttribute('tabindex', '-1');
+      target.scrollIntoView({ block: 'start', behavior: 'instant' });
+      target.focus({ preventScroll: true });
+      focusedNavigation.current = navigation.token;
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [navigation, view, active?.id, insightState.loading, insightState.report]);
   const filteredPortfolio = portfolio.filter(
     (p) =>
       (position === 'ALL' || p.position === position) &&
       `${p.name} ${p.team}`.toLowerCase().includes(search.toLowerCase()),
   );
   const reviewKey = (l: League) => `${data?.season}:${selectedWeek}:${l.id}`;
-  const reviewed = leagues.filter(
-    (l) => preferences.reviewed[reviewKey(l)],
-  ).length;
-  const deadline = leagues
-    .flatMap((l) =>
-      l.players
-        .filter((p) => p.slot && p.kickoff && p.kickoff > now)
-        .map((p) => p.kickoff!),
-    )
-    .sort((a, b) => a - b)[0];
   return (
     <SidebarProvider
       className="desk"
@@ -484,7 +519,7 @@ export default function FantasyDashboard({
               </div>
               <h1>
                 {view === 'overview'
-                  ? `Week ${selectedWeek} game plan`
+                  ? `Week ${selectedWeek} command center`
                   : view === 'lab'
                     ? 'Your recommended lineup'
                     : view === 'portfolio'
@@ -497,7 +532,7 @@ export default function FantasyDashboard({
               </h1>
               <p>
                 {view === 'overview'
-                  ? 'Set your best supported lineup, then find additions that could improve it.'
+                  ? 'Every connected league. Every decision to review. Start with the actions that matter most.'
                   : view === 'lab'
                     ? 'Your recommended starters, using provider projections and your league’s scoring.'
                     : view === 'portfolio'
@@ -510,6 +545,17 @@ export default function FantasyDashboard({
               </p>
             </div>
             <div className="heading-actions">
+              {view !== 'overview' && (
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    setNavigation(null);
+                    setView('overview');
+                  }}
+                >
+                  All-league Plan
+                </Button>
+              )}
               <Select
                 value={String(selectedWeek)}
                 onValueChange={(v) => {
@@ -618,271 +664,20 @@ export default function FantasyDashboard({
             {data && data.week === selectedWeek && (
               <>
                 <TabsContent value="overview">
-                  <WeeklyPlan
+                  <CommandCenter
                     leagues={leagues}
-                    selected={selected}
-                    onSelect={setSelected}
-                    state={insightState}
+                    entries={workspaceInsights.entries}
                     now={now}
                     blocked={!!error}
-                    onOpen={setView}
-                    onRefresh={() => void load(true)}
+                    protectedByLeague={protectedByLeague}
+                    onNavigate={navigateFromPlan}
+                    onRetry={(id) => {
+                      const league = leagues.find((l) => l.id === id);
+                      if (error || league?.error || league?.stale)
+                        void load(true);
+                      else workspaceInsights.retry(id);
+                    }}
                   />
-                  <details className="all-leagues-details">
-                    <summary>
-                      All leagues & lineup alerts{' '}
-                      <span>
-                        {leagues.length} leagues · {issues.length} alerts
-                      </span>
-                    </summary>
-                    <div className="feature">
-                      <div>
-                        <div className="eyebrow">
-                          THE WEEKLY EDGE{' '}
-                          <span className="feature-week">
-                            WK {String(selectedWeek).padStart(2, '0')}
-                          </span>
-                        </div>
-                        <h2>
-                          {issues.filter((i) => !i.locked).length
-                            ? `${issues.filter((i) => !i.locked).length} starting spots deserve a closer look.`
-                            : upgrades.length
-                              ? `A stronger combination is on your bench.`
-                              : current
-                                ? 'Your week, all in one place.'
-                                : 'Look ahead. Learn from the past.'}
-                        </h2>
-                        <p>
-                          {issues.length
-                            ? 'Work through lineup alerts, compare your options, then set your lineup in the league app.'
-                            : upgrades.length
-                              ? 'Compare projected starters using your league’s scoring rules.'
-                              : 'Review your lineup, track your matchups, and see where your fantasy teams overlap.'}
-                        </p>
-                        <Button
-                          className="feature-action"
-                          onClick={() =>
-                            selectLeague(
-                              (
-                                issues.find((i) => !i.locked)?.league ??
-                                upgrades[0] ??
-                                leagues[0]
-                              ).id,
-                            )
-                          }
-                        >
-                          Review lineup <ArrowRight size={15} />
-                        </Button>
-                      </div>
-                      <div className="feature-score">
-                        <Target size={26} />
-                        <b>
-                          {reviewed}
-                          <span>/{leagues.length}</span>
-                        </b>
-                        <small>LEAGUES REVIEWED</small>
-                        <Progress
-                          aria-label="Leagues reviewed"
-                          aria-valuetext={`${reviewed} of ${leagues.length} leagues reviewed`}
-                          value={
-                            leagues.length
-                              ? (reviewed / leagues.length) * 100
-                              : 0
-                          }
-                        />
-                      </div>
-                    </div>
-                    <div className="stat-grid">
-                      <Stat
-                        label="Leagues in sync"
-                        value={`${synced.length} / ${leagues.length}`}
-                        detail={
-                          synced.length === leagues.length
-                            ? 'All roster connections responding'
-                            : 'Some connections need attention'
-                        }
-                        icon={<Radio />}
-                      />
-                      <Stat
-                        label="Starting spots to watch"
-                        value={String(issues.length)}
-                        detail={`${issues.filter((i) => i.locked).length} already locked · ${issues.filter((i) => !i.locked).length} to review`}
-                        icon={<CircleAlert />}
-                      />
-                      <Stat
-                        label="Lineups with alternatives"
-                        value={String(upgrades.length)}
-                        detail="Eligible bench combinations to compare"
-                        icon={<Zap />}
-                      />
-                      <Stat
-                        label="Next starter kickoff"
-                        value={deadline ? time(deadline) : '—'}
-                        detail={
-                          deadline
-                            ? new Date(deadline).toLocaleDateString([], {
-                                weekday: 'long',
-                                month: 'short',
-                                day: 'numeric',
-                              })
-                            : 'No upcoming kickoff confirmed'
-                        }
-                        icon={<Clock3 />}
-                      />
-                    </div>
-                    <div className="overview-split">
-                      <section className="panel watch-panel">
-                        <div className="section-head">
-                          <div>
-                            <div className="eyebrow">FIRST THINGS FIRST</div>
-                            <h2>Lineup alerts</h2>
-                            <p className="muted">
-                              Starting slots that need attention: injuries, bye
-                              weeks or missing players.
-                            </p>
-                          </div>
-                          <span className="count-pill">{issues.length}</span>
-                        </div>
-                        {issues.length ? (
-                          issues.slice(0, 5).map((issue, i) => (
-                            <button
-                              className="watch-row"
-                              key={`${issue.league.id}:${issue.slot}:${i}`}
-                              onClick={() => selectLeague(issue.league.id)}
-                            >
-                              <span
-                                className={`watch-symbol ${issue.reason.startsWith('Monitor') ? 'amber' : 'red'}`}
-                              >
-                                {issue.locked ? (
-                                  <LockKeyhole size={17} />
-                                ) : (
-                                  <CircleAlert size={18} />
-                                )}
-                              </span>
-                              <div>
-                                <strong>
-                                  {issue.player?.name ?? `Fill ${issue.slot}`}
-                                </strong>
-                                <p>
-                                  {issue.reason}
-                                  {issue.locked ? ' · Locked' : ''}
-                                </p>
-                                <small>
-                                  {issue.league.name} ·{' '}
-                                  {issue.league.platform.toUpperCase()}
-                                </small>
-                              </div>
-                              <ChevronRight size={16} />
-                            </button>
-                          ))
-                        ) : (
-                          <div className="empty-state compact">
-                            <CheckCheck size={32} />
-                            <h3>
-                              {current
-                                ? 'No starter warnings found.'
-                                : 'Reference week selected.'}
-                            </h3>
-                            <p>
-                              {current
-                                ? 'Keep an eye on late injury reports and refresh before kickoff.'
-                                : 'Choose the current week for lineup alerts.'}
-                            </p>
-                          </div>
-                        )}
-                        {issues.length > 5 && (
-                          <p className="muted">
-                            +{issues.length - 5} more flagged spots in the
-                            lineup lab.
-                          </p>
-                        )}
-                      </section>
-                      <section className="panel exposure-preview">
-                        <div className="section-head">
-                          <div>
-                            <div className="eyebrow">SHARED STAKES</div>
-                            <h2>Your biggest overlaps</h2>
-                          </div>
-                          <Layers3 size={21} />
-                        </div>
-                        {portfolio.slice(0, 4).map((p) => (
-                          <div key={p.key} className="overlap-row">
-                            <div>
-                              <strong>{p.name}</strong>
-                              <small>
-                                {p.position} · {p.team}
-                              </small>
-                            </div>
-                            <div className="overlap-value">
-                              <b>
-                                {p.leagues.length}
-                                <small>
-                                  {' '}
-                                  /{' '}
-                                  {
-                                    leagues.filter((l) => l.players.length)
-                                      .length
-                                  }
-                                </small>
-                              </b>
-                              <Progress
-                                aria-label="League share"
-                                value={
-                                  (p.leagues.length /
-                                    Math.max(
-                                      1,
-                                      leagues.filter((l) => l.players.length)
-                                        .length,
-                                    )) *
-                                  100
-                                }
-                              />
-                            </div>
-                          </div>
-                        ))}
-                        <button
-                          className="text-link"
-                          onClick={() => setView('portfolio')}
-                        >
-                          See all your players <ArrowRight size={14} />
-                        </button>
-                      </section>
-                    </div>
-                    <div className="section-head leagues-heading">
-                      <div>
-                        <div className="eyebrow">THE WHOLE FIELD</div>
-                        <h2>Your leagues</h2>
-                      </div>
-                      <div className="filter-buttons">
-                        {['all', 'espn', 'sleeper'].map((p) => (
-                          <Button
-                            key={p}
-                            size="sm"
-                            variant={platform === p ? 'secondary' : 'ghost'}
-                            aria-pressed={platform === p}
-                            onClick={() => setPlatform(p)}
-                          >
-                            {p === 'all' ? 'All leagues' : p.toUpperCase()}
-                          </Button>
-                        ))}
-                      </div>
-                    </div>
-                    <div className="league-grid">
-                      {leagues
-                        .filter(
-                          (l) => platform === 'all' || l.platform === platform,
-                        )
-                        .map((l) => (
-                          <LeagueCard
-                            key={l.id}
-                            league={l}
-                            analysis={analyses.get(l.id)!}
-                            reviewed={!!preferences.reviewed[reviewKey(l)]}
-                            onOpen={() => selectLeague(l.id)}
-                          />
-                        ))}
-                    </div>
-                  </details>
                 </TabsContent>
                 <TabsContent value="lab">
                   <WeeklyPlan
@@ -940,6 +735,8 @@ export default function FantasyDashboard({
                     now={now}
                     blocked={!!error}
                     state={insightState}
+                    protectedByLeague={protectedByLeague}
+                    onProtect={protectPlayer}
                     onLineup={() => setView('lab')}
                     onRefresh={() => void load(true)}
                   />
@@ -1181,123 +978,6 @@ export default function FantasyDashboard({
         </output>
       )}
     </SidebarProvider>
-  );
-}
-
-function Stat({
-  label,
-  value,
-  detail,
-  icon,
-}: {
-  label: string;
-  value: string;
-  detail: string;
-  icon: React.ReactNode;
-}) {
-  return (
-    <div className="stat">
-      <div className="stat-label">
-        {label}
-        {icon}
-      </div>
-      <b>{value}</b>
-      <small>{detail}</small>
-    </div>
-  );
-}
-function LeagueCard({
-  league: l,
-  analysis: a,
-  reviewed,
-  onOpen,
-}: {
-  league: League;
-  analysis: Analysis;
-  reviewed: boolean;
-  onOpen: () => void;
-}) {
-  const count = a.enabled ? a.issues.length : 0;
-  return (
-    <article className={`league-card ${l.error ? 'league-error' : ''}`}>
-      <div className="card-top">
-        <PlatformTag value={l.platform} />
-        <span
-          className={`card-status ${l.error ? 'danger' : reviewed ? 'success' : ''}`}
-        >
-          {l.error ? (
-            'Needs attention'
-          ) : reviewed ? (
-            <>
-              <Check size={11} />
-              Reviewed
-            </>
-          ) : l.status === 'pre_draft' ? (
-            'Pre-draft'
-          ) : (
-            l.record
-          )}
-        </span>
-      </div>
-      <h3>{l.name}</h3>
-      <p className="team-name">{l.teamName}</p>
-      <div className="card-matchup">
-        <div>
-          <span>YOUR SCORE</span>
-          <b>{number(l.actual)}</b>
-        </div>
-        <span className="versus">vs</span>
-        <div>
-          <span>OPPONENT</span>
-          <b>{number(l.opponent?.actual)}</b>
-        </div>
-      </div>
-      <p className="opponent-name">
-        {l.opponent ? `vs ${l.opponent.name}` : 'Weekly matchup not available'}
-      </p>
-      {l.matchupProjection !== null &&
-        l.opponent?.projection !== null &&
-        l.opponent && (
-          <p className="forecast">
-            ESPN live forecast{' '}
-            <b>
-              {number(l.matchupProjection)} <span>–</span>{' '}
-              {number(l.opponent.projection)}
-            </b>
-          </p>
-        )}
-      <div className="league-meta">
-        <span>{l.scoring}</span>
-        <span>{l.players.length} players</span>
-      </div>
-      {l.error ? (
-        <p className="card-warning">{l.error}</p>
-      ) : count ? (
-        <div className="card-warning">
-          <CircleAlert size={13} />
-          {count} starting {count === 1 ? 'spot' : 'spots'} to watch
-        </div>
-      ) : a.enabled && a.changes.length ? (
-        <div className="card-opportunity">
-          <Zap size={13} />
-          {a.gain !== null && a.gain > 0.05
-            ? `+${number(a.gain)} projected points available`
-            : 'A bench alternative is available'}
-        </div>
-      ) : (
-        <div className="card-neutral">
-          {l.status === 'pre_draft'
-            ? 'Plan ahead for your draft'
-            : a.enabled
-              ? 'Review your lineup options'
-              : 'Roster available for reference'}
-        </div>
-      )}
-      <button className="card-bottom" onClick={onOpen}>
-        <span>Review lineup</span>
-        <ArrowUpRight size={17} />
-      </button>
-    </article>
   );
 }
 
@@ -1805,7 +1485,12 @@ function Connections({
           </Button>
         </div>
         {leagues.map((l) => (
-          <div className="connection-row" key={l.id}>
+          <div
+            className="connection-row"
+            key={l.id}
+            id={`source-${l.id}`}
+            tabIndex={-1}
+          >
             <span
               className={`connection-icon ${l.error ? 'connection-bad' : ''}`}
             >

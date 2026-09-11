@@ -10,5 +10,11 @@ export default async function Home() {
     )
   )
     redirect('/setup');
-  return <FantasyDashboard displayName={user.displayName} />;
+  return (
+    <FantasyDashboard
+      key={user.userId}
+      workspaceId={user.userId}
+      displayName={user.displayName}
+    />
+  );
 }

@@ -29,7 +29,7 @@ export default function LineupDataReview({
     </li>
   );
   return (
-    <div className="lineup-data-review">
+    <div className="lineup-data-review" id="lineup-data-checks" tabIndex={-1}>
       <strong>What needs review</strong>
       <p>
         {analysis.coverage.starterScores === analysis.coverage.starterSlots

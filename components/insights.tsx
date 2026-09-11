@@ -1,5 +1,4 @@
 'use client';
-import { useState } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -23,6 +22,8 @@ export default function Insights({
   state,
   onLineup,
   onRefresh,
+  protectedByLeague,
+  onProtect,
 }: {
   leagues: League[];
   selected: string;
@@ -33,10 +34,9 @@ export default function Insights({
   state: LeagueInsightsState;
   onLineup: () => void;
   onRefresh: () => void;
+  protectedByLeague: Record<string, string[]>;
+  onProtect: (leagueId: string, playerId: string) => void;
 }) {
-  const [protectedByLeague, setProtectedByLeague] = useState<
-    Record<string, string[]>
-  >({});
   const active = leagues.find((l) => l.id === selected) ?? leagues[0];
   const { report, error, loading } = state;
   const refresh =
@@ -61,16 +61,7 @@ export default function Insights({
         Connect a league to build its roster plan.
       </div>
     );
-  const protect = (id: string) =>
-    setProtectedByLeague((old) => {
-      const ids = old[active.id] ?? [];
-      return {
-        ...old,
-        [active.id]: ids.includes(id)
-          ? ids.filter((x) => x !== id)
-          : [...ids, id],
-      };
-    });
+  const protect = (id: string) => onProtect(active.id, id);
   return (
     <div className="insights-workspace">
       <div className="insight-toolbar">

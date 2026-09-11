@@ -14,6 +14,7 @@ import { buildTeamRosterPlan } from '@/lib/fantasy/team-roster-plan';
 import type { RosterMove } from '@/lib/fantasy/team-roster-plan';
 import { playerPoints } from '@/lib/fantasy/points';
 import { weeklyBackup } from '@/lib/fantasy/roster-construction';
+import { moveTarget } from '@/lib/fantasy/command-center';
 import type { InsightReport } from '@/lib/fantasy/projections';
 
 const points = (n: number | null) => (n === null ? 'Pending' : n.toFixed(1));
@@ -42,7 +43,7 @@ function MoveCard({
     report.league.rosterRules?.format ?? 'unknown',
   );
   return (
-    <article className="team-move">
+    <article className="team-move" id={moveTarget(move.add.id)} tabIndex={-1}>
       <div className="team-move-top">
         <span className="team-label">{kindLabel[move.kind]}</span>
         <span className="team-gain">
@@ -217,6 +218,12 @@ export default function RosterConstruction({
   const { league } = report;
   const provider = league.platform === 'espn' ? 'ESPN' : 'Sleeper';
   const primary = plan.upgrades[0] ?? plan.depthMoves[0];
+  const visibleMoves = new Set(
+    [...plan.upgrades, ...plan.depthMoves, ...plan.streams].map(
+      (m) => m.add.id,
+    ),
+  );
+  const otherMoves = plan.allMoves.filter((m) => !visibleMoves.has(m.add.id));
   const newStarters = plan.repairs.filter(
     (a) => !plan.repairs.some((b) => b.current?.id === a.recommended?.id),
   );
@@ -465,7 +472,7 @@ export default function RosterConstruction({
           {plan.byes.length ? (
             <div className="team-byes">
               {plan.byes.map((b) => (
-                <div key={b.week}>
+                <div key={b.week} id={`roster-bye-${b.week}`} tabIndex={-1}>
                   <span className="team-slot">W{b.week}</span>
                   <div>
                     <strong>
@@ -508,7 +515,21 @@ export default function RosterConstruction({
           <div className="team-move-grid">{plan.streams.map(renderMove)}</div>
         </section>
       )}
-      <section className="panel team-section">
+      {otherMoves.length > 0 && (
+        <section className="panel team-section">
+          <details className="team-method">
+            <summary>
+              All other checked roster comparisons ({otherMoves.length})
+            </summary>
+            <p>
+              These alternatives also appear in your all-league Plan. Each is a
+              separate add/drop scenario.
+            </p>
+            <div className="team-move-grid">{otherMoves.map(renderMove)}</div>
+          </details>
+        </section>
+      )}
+      <section className="panel team-section" id="roster-bench">
         <div className="team-section-heading">
           <div>
             <div className="eyebrow">
@@ -526,8 +547,9 @@ export default function RosterConstruction({
         </div>
         <p className="team-note">
           Select Keep to exclude a player from proposed drops. Selections apply
-          to this league during this Waivers visit; they do not change your
-          fantasy roster. Protect your keeper or dynasty assets here.
+          to this league across Plan and Waivers for this session; they do not
+          change your fantasy roster. Protect your keeper or dynasty assets
+          here.
         </p>
         <div className="team-bench">
           {plan.bench.map((b) => (

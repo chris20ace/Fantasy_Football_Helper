@@ -564,6 +564,7 @@ export function buildTeamRosterPlan(
     upgrades,
     depthMoves,
     streams,
+    allMoves: moves,
     bench,
     byes,
     active: active.length,

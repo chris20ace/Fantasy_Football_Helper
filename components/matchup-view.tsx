@@ -113,6 +113,8 @@ export default function MatchupView({
     <section
       className={`matchup-workspace ${compact ? 'matchup-compact' : ''}`}
       aria-label="Weekly matchup"
+      id="matchup-analysis"
+      tabIndex={-1}
     >
       <div className="matchup-heading">
         <div>

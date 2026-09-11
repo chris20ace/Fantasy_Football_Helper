@@ -43,6 +43,7 @@ export async function json(
     );
   return r.json();
 }
+const publicRequests = new Map<string, Promise<any>>();
 export async function cached(
   key: string,
   ttl: number,
@@ -51,9 +52,34 @@ export async function cached(
 ) {
   const c = await readCache(key);
   if (c && !force && Date.now() - c.updated < ttl) return JSON.parse(c.value);
-  const value = await fn();
-  await saveCache(key, value);
-  return value;
+  const pending = publicRequests.get(key);
+  if (pending) return pending;
+  const request = (async () => {
+    const value = await fn();
+    await saveCache(key, value);
+    return value;
+  })();
+  publicRequests.set(key, request);
+  try {
+    return await request;
+  } finally {
+    if (publicRequests.get(key) === request) publicRequests.delete(key);
+  }
+}
+
+export function sleeperProjectionRows(
+  season: number,
+  week: number,
+  refresh = false,
+) {
+  return cached(
+    `sleeper-provider-projections:${season}:${week}`,
+    refresh ? 20000 : 180000,
+    () =>
+      json(
+        `${SLEEPER}/projections/nfl/${season}/${week}?season_type=regular&position[]=QB&position[]=RB&position[]=WR&position[]=TE&position[]=K&position[]=DEF`,
+      ),
+  );
 }
 
 export async function addGameStatuses(
@@ -292,9 +318,9 @@ export async function getDashboard(
   const sources = await Promise.allSettled([
     ids.size ? catalog(ids, refresh, namespace, userId) : Promise.resolve({}),
     ids.size
-      ? json(
-          `${SLEEPER}/projections/nfl/${season}/${week}?season_type=regular&position[]=QB&position[]=RB&position[]=WR&position[]=TE&position[]=K&position[]=DEF`,
-        ).then((rows: Raw[]) => rows.filter((p) => ids.has(p.player_id)))
+      ? sleeperProjectionRows(season, week, refresh).then((rows: Raw[]) =>
+          rows.filter((p) => ids.has(p.player_id)),
+        )
       : Promise.resolve([]),
   ]);
   if (sources[0].status === 'fulfilled') details = sources[0].value;

@@ -1,0 +1,479 @@
+.command-center {
+  display: grid;
+  gap: 1.25rem;
+  color: #152d4d;
+  min-width: 0;
+}
+.command-center * {
+  min-width: 0;
+}
+.command-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  background: #152d4d;
+  color: white;
+  border-radius: 14px;
+  padding: 1.25rem;
+  gap: 1.25rem;
+  border-top: 4px solid #b7e782;
+}
+.command-summary > div {
+  display: grid;
+  grid-template-columns: 24px 1fr;
+  align-items: center;
+  column-gap: 0.65rem;
+  row-gap: 0.4rem;
+}
+.command-summary svg {
+  color: #bee899;
+}
+.command-summary strong {
+  font-size: 1.9rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+.command-summary small {
+  font-size: 1.1rem;
+  font-weight: 500;
+  color: #c2d4ee;
+}
+.command-summary span {
+  grid-column: 1 / -1;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: #d8e4f5;
+}
+.command-summary .command-next {
+  font-size: 1.1rem;
+}
+.command-league-index {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.command-league-index a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid #cfdbef;
+  background: white;
+  border-radius: 7px;
+  min-height: 44px;
+  padding: 0.55rem 0.75rem;
+  color: #24436e;
+  font-size: 0.875rem;
+  text-decoration: none;
+  max-width: 100%;
+}
+.command-league-index a > span:nth-child(2) {
+  overflow-wrap: anywhere;
+}
+.command-league-index b {
+  background: #eaf0fa;
+  border-radius: 4px;
+  min-width: 22px;
+  padding: 0.1rem 0.35rem;
+  text-align: center;
+}
+.command-scan {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.875rem;
+  color: #496386;
+  margin: 0;
+}
+.command-scan svg {
+  flex-shrink: 0;
+}
+.command-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.8fr) minmax(280px, 1fr);
+  gap: 1.5rem;
+  align-items: start;
+}
+.command-section-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+.command-section-heading h2 {
+  font-size: 1.4rem;
+  font-weight: 750;
+  line-height: 1.3;
+  letter-spacing: -0.02em;
+  margin: 0 0 0.4rem;
+}
+.command-section-heading p {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.6;
+  color: #536983;
+}
+.command-count {
+  font-size: 1rem;
+  font-weight: 750;
+  background: #e5eefc;
+  color: #2755a9;
+  border-radius: 6px;
+  padding: 0.45rem 0.75rem;
+}
+.command-action {
+  padding: 1.4rem;
+  background: #fff;
+  border: 1px solid #d3dff0;
+  border-left: 4px solid #2856df;
+  border-radius: 12px;
+  margin-bottom: 1rem;
+  scroll-margin-top: 1.5rem;
+}
+.command-action.command-optional {
+  border-left-color: #aebed4;
+}
+.command-action-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.7rem;
+  flex-wrap: wrap;
+}
+.command-kind {
+  display: inline-flex;
+  gap: 0.45rem;
+  align-items: center;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #2852a0;
+}
+.command-kind-injury,
+.command-kind-data {
+  color: #946013;
+}
+.command-kind-connection {
+  color: #a43b36;
+}
+.command-kind-depth,
+.command-kind-bye {
+  color: #317052;
+}
+.command-tag {
+  font-size: 0.75rem;
+  padding: 0.3rem 0.5rem;
+  border-radius: 5px;
+  background: #eef2f7;
+  color: #53677f;
+}
+.command-urgent {
+  color: #974028;
+  background: #fff0e7;
+}
+.command-action .command-action-league {
+  margin: 0.9rem 0 0.3rem;
+  font-size: 0.875rem;
+  color: #405b7e;
+  font-weight: 600;
+}
+.command-action-league span {
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+.command-action h3 {
+  font-size: 1.2rem;
+  line-height: 1.4;
+  margin: 0.25rem 0 0.5rem;
+  font-weight: 750;
+}
+.command-action .command-action-detail {
+  font-size: 1rem;
+  color: #405976;
+  line-height: 1.65;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.command-action-footer {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  margin-top: 1rem;
+}
+.command-action-footer > span {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8125rem;
+  color: #536983;
+  flex: 1 1 160px;
+}
+.command-action-footer button {
+  min-height: 44px;
+  height: auto;
+  white-space: normal;
+}
+.command-alternatives {
+  border-top: 1px solid #e0e7f2;
+  margin-top: 1rem;
+  padding-top: 0.7rem;
+}
+.command-alternatives summary {
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 650;
+  padding: 0.4rem 0;
+  color: #2853a4;
+}
+.command-alternatives p {
+  font-size: 0.8125rem;
+  line-height: 1.6;
+  color: #536983;
+}
+.command-alternatives button {
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.85rem 0.6rem;
+  text-align: left;
+  border-top: 1px solid #e5ebf5;
+  cursor: pointer;
+  border-radius: 5px;
+}
+.command-alternatives strong {
+  display: block;
+  font-size: 0.9375rem;
+  font-weight: 650;
+  line-height: 1.5;
+}
+.command-alternatives small {
+  display: block;
+  color: #536983;
+  font-size: 0.8125rem;
+  margin-top: 0.3rem;
+  line-height: 1.5;
+}
+.command-alternatives svg {
+  flex-shrink: 0;
+  color: #2856df;
+}
+.command-league {
+  margin-bottom: 1rem;
+  scroll-margin-top: 1.5rem;
+  padding: 1.25rem;
+}
+.command-league-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.6rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.command-league-state {
+  color: #526680;
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+.command-state-ready .command-league-state {
+  color: #326b45;
+}
+.command-state-attention .command-league-state {
+  color: #ae3636;
+}
+.command-state-actions .command-league-state {
+  color: #2655bc;
+}
+.command-league h3 {
+  font-size: 1.15rem;
+  line-height: 1.4;
+  margin: 0.9rem 0 0.3rem;
+  font-weight: 750;
+}
+.command-league .command-team-name {
+  font-size: 0.9375rem;
+  color: #445f80;
+  margin: 0;
+}
+.command-league .command-rules {
+  font-size: 0.75rem;
+  color: #536983;
+  margin: 0.3rem 0 0.8rem;
+}
+.command-score {
+  background: #f3f6fc;
+  padding: 0.8rem;
+  border-radius: 8px;
+}
+.command-score > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+.command-score span {
+  font-size: 0.75rem;
+  color: #526680;
+}
+.command-score strong {
+  font-size: 1.15rem;
+  font-variant-numeric: tabular-nums;
+}
+.command-score small {
+  color: #8b9ab0;
+}
+.command-score p {
+  font-size: 0.8125rem;
+  margin: 0.3rem 0 0;
+}
+.command-first-action {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+  width: 100%;
+  padding: 0.85rem 0;
+  color: #2753a7;
+  text-align: left;
+  font-size: 0.9375rem;
+  font-weight: 650;
+  line-height: 1.5;
+  cursor: pointer;
+}
+.command-first-action svg {
+  flex-shrink: 0;
+}
+.command-league .command-ready-message,
+.command-league .command-score-pending {
+  font-size: 0.875rem;
+  line-height: 1.6;
+  color: #526680;
+  margin: 0.8rem 0;
+}
+.command-league-links {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.4rem;
+}
+.command-league-links button {
+  min-height: 44px;
+  font-size: 0.8125rem;
+  padding-inline: 0.25rem;
+}
+.command-queue-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8125rem;
+  color: #496386;
+  min-height: 44px;
+  padding-top: 0.5rem;
+  line-height: 1.5;
+}
+.command-clear {
+  text-align: center;
+  padding: 2rem;
+}
+.command-clear > svg {
+  margin: 0 auto 1rem;
+  color: #45703d;
+}
+.command-clear h3 {
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+.command-clear p {
+  font-size: 1rem;
+}
+.command-center button:hover,
+.command-league-index a:hover {
+  filter: brightness(0.97);
+}
+.command-center :focus-visible {
+  outline: 3px solid #427bfa;
+  outline-offset: 3px;
+}
+.team-move,
+#recommended-lineup,
+#lineup-data-checks,
+#matchup-analysis,
+[id^='lineup-player-'],
+[id^='roster-bye-'],
+[id^='source-'] {
+  scroll-margin-top: 1.5rem;
+}
+.team-move:focus,
+#recommended-lineup:focus,
+#lineup-data-checks:focus,
+#matchup-analysis:focus,
+[id^='lineup-player-']:focus,
+[id^='roster-bye-']:focus,
+[id^='source-']:focus {
+  outline: 3px solid #427bfa;
+  outline-offset: 3px;
+}
+@media (max-width: 1150px) {
+  .command-layout {
+    grid-template-columns: minmax(0, 1.4fr) minmax(270px, 1fr);
+    gap: 1rem;
+  }
+  .command-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 850px) {
+  .command-layout {
+    grid-template-columns: 1fr;
+  }
+  .command-leagues {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+  }
+  .command-leagues > .command-section-heading {
+    grid-column: 1 / -1;
+    margin-bottom: 0;
+  }
+  .command-league {
+    margin-bottom: 0;
+  }
+}
+@media (max-width: 560px) {
+  .command-summary {
+    gap: 1rem;
+    padding: 1rem;
+  }
+  .command-summary strong {
+    font-size: 1.6rem;
+  }
+  .command-summary .command-next {
+    font-size: 0.95rem;
+  }
+  .command-summary span {
+    font-size: 0.8125rem;
+  }
+  .command-league-index {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding: 4px;
+  }
+  .command-league-index a {
+    flex: 0 0 auto;
+    max-width: 250px;
+  }
+  .command-action {
+    padding: 1rem;
+  }
+  .command-action-footer > span {
+    flex-basis: 100%;
+  }
+  .command-action-footer button {
+    flex: 1;
+  }
+  .command-leagues {
+    grid-template-columns: 1fr;
+  }
+  .command-action-top {
+    align-items: flex-start;
+  }
+}
