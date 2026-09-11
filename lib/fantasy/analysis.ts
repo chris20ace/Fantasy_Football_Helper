@@ -1,5 +1,7 @@
 import type { Analysis, League, Player } from './types';
-import { playerPoints } from './points.ts';
+import { playerPoints, isLocked } from './points.ts';
+import { applySleeperAutoSubLocks } from './autosubs.ts';
+export { isLocked } from './points.ts';
 export const unavailable = (p: Player) =>
   p.gameStatus === 'canceled' ||
   p.gameStatus === 'postponed' ||
@@ -7,14 +9,6 @@ export const unavailable = (p: Player) =>
   /^(OUT|IR|INJURY_RESERVE|SUSPENDED|PUP|DNR|NA)$/i.test(p.injury) ||
   p.reserve ||
   p.taxi;
-export function isLocked(p: Player, now = Date.now()) {
-  return (
-    p.gameStatus === 'live' ||
-    p.gameStatus === 'final' ||
-    p.locked === true ||
-    (p.kickoff !== null && p.kickoff <= now)
-  );
-}
 export function total(
   players: (Player | null)[],
   now = Date.now(),
@@ -24,7 +18,16 @@ export function total(
     ? null
     : values.reduce<number>((sum, v) => sum + v!, 0);
 }
-export function analyze(league: League, now = Date.now()): Analysis {
+export function analyze(
+  league: League,
+  now = Date.now(),
+  newPlayerId?: string,
+): Analysis {
+  if (league.autoSubs)
+    league = {
+      ...league,
+      players: applySleeperAutoSubLocks(league.players, now, newPlayerId),
+    };
   const current = league.slots.map(
     (s) => league.players.find((p) => p.slot === s.id) ?? null,
   );
@@ -87,18 +90,51 @@ export function analyze(league: League, now = Date.now()): Analysis {
     reasons.push(
       'Refresh this league before acting on lineup recommendations.',
     );
-  const unknown = league.players.filter(
-    (p) =>
-      !p.reserve &&
-      !p.taxi &&
-      !unavailable(p) &&
-      !isLocked(p, now) &&
-      playerPoints(p, now).value === null,
+  const review: Analysis['review'] = [];
+  for (const p of league.players) {
+    const slot = league.slots.find((s) => s.id === p.slot);
+    // A bench player only affects this week's choices if a compatible slot
+    // remains open. Played bench players, reserves and taxi players do not.
+    const relevant =
+      !!slot ||
+      (!unavailable(p) &&
+        !isLocked(p, now) &&
+        league.slots.some(
+          (s, i) =>
+            p.eligible.includes(s.key) &&
+            (!current[i] || !isLocked(current[i]!, now)),
+        ));
+    if (!relevant) continue;
+    const points = playerPoints(p, now);
+    const add = (kind: Analysis['review'][number]['kind'], reason: string) =>
+      review.push({ player: p, slot: slot?.label ?? 'Bench', kind, reason });
+    if (points.value === null) {
+      if (points.basis === 'actual')
+        add(
+          'actual',
+          `${p.gameStatus === 'final' ? 'Final' : 'Live'} points are pending from ${league.platform === 'sleeper' ? 'Sleeper' : 'ESPN'}. This player stays locked; their old projection is not used.`,
+        );
+      else if (points.label === 'Status pending')
+        add(
+          'game-status',
+          'Game status could not be confirmed. A score is not assumed from kickoff time.',
+        );
+      else if (!unavailable(p) && (!isLocked(p, now) || slot))
+        add(
+          'projection',
+          `${p.partial ? 'A complete league-scored projection is unavailable' : 'No weekly projection was supplied'} by ${league.platform === 'sleeper' ? 'Sleeper' : 'ESPN'}. ${slot ? 'Kept in place for review.' : 'Not compared for lineup changes.'}`,
+        );
+    }
+    if (p.locked === null && !isLocked(p, now) && (!unavailable(p) || slot))
+      add(
+        'lock',
+        p.lockReason ??
+          'Lineup eligibility could not be confirmed. Verify the lock in your league app.',
+      );
+  }
+  reasons.push(
+    ...review.map((r) => `${r.player.name} · ${r.slot}: ${r.reason}`),
   );
-  if (unknown.length)
-    reasons.push(
-      `${unknown.length} player${unknown.length === 1 ? ' has' : 's have'} missing or incomplete projections; those players are held out of swaps.`,
-    );
   const pinned = current.map(
     (p) =>
       !!p &&
@@ -106,8 +142,6 @@ export function analyze(league: League, now = Date.now()): Analysis {
         p.locked === null ||
         (!unavailable(p) && playerPoints(p, now).value === null)),
   );
-  if (current.some((p) => p?.locked === null))
-    reasons.push('Unknown game lock: current starter held in place.');
   const result = [...current];
   if (enabled) {
     const free = league.slots.map((_, i) => i).filter((i) => !pinned[i]);
@@ -172,6 +206,7 @@ export function analyze(league: League, now = Date.now()): Analysis {
     recommended = new Set(result.filter(Boolean).map((p) => p!.id));
   const currentTotal = total(current, now),
     recommendedTotal = total(result, now);
+  const complete = enabled && review.length === 0 && recommendedTotal !== null;
   return {
     assignments: league.slots.map((slot, i) => ({
       slot,
@@ -182,19 +217,19 @@ export function analyze(league: League, now = Date.now()): Analysis {
     currentTotal,
     recommendedTotal,
     gain:
-      enabled && currentTotal !== null && recommendedTotal !== null
+      complete && currentTotal !== null && recommendedTotal !== null
         ? recommendedTotal - currentTotal
         : null,
     changes: result.filter((p): p is Player => !!p && !existing.has(p.id)),
     removed: current.filter((p): p is Player => !!p && !recommended.has(p.id)),
     issues,
-    complete:
-      enabled &&
-      unknown.length === 0 &&
-      recommendedTotal !== null &&
-      !league.players.some(
-        (p) => p.locked === null && !isLocked(p, now) && !unavailable(p),
-      ),
+    review,
+    coverage: {
+      starterScores: current.filter((p) => playerPoints(p, now).value !== null)
+        .length,
+      starterSlots: current.length,
+    },
+    complete,
     enabled,
     reasons,
   };

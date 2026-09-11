@@ -44,7 +44,8 @@ export function analyzeMatchup(report: InsightReport, now = Date.now()) {
   const analysis = analyze({ ...league, stale: !fresh || !!league.stale }, now);
   const rows = league.slots.map((slot) => ({
     slot,
-    mine: league.players.find((p) => p.slot === slot.id) ?? null,
+    mine:
+      analysis.assignments.find((a) => a.slot.id === slot.id)?.current ?? null,
     suggested:
       analysis.assignments.find((a) => a.slot.id === slot.id)?.recommended ??
       null,
@@ -79,6 +80,8 @@ export function analyzeMatchup(report: InsightReport, now = Date.now()) {
   };
   return {
     available,
+    lineupComplete: analysis.complete,
+    lineupGain: available ? analysis.gain : null,
     reason: !opponent
       ? 'No head-to-head opponent is scheduled for this week.'
       : !fresh

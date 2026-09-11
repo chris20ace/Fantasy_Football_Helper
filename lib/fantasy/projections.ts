@@ -83,6 +83,7 @@ export function rankWaivers(
                 players: [...league.players, { ...player, slot: null }],
               },
               now,
+              player.id,
             )
           : baseline;
       const chosen = next.assignments.find(

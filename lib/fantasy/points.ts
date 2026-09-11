@@ -12,6 +12,15 @@ export type GameStatus =
 const finite = (value: number | null | undefined) =>
   typeof value === 'number' && Number.isFinite(value) ? value : null;
 
+export function isLocked(p: Player, now = Date.now()) {
+  return (
+    p.gameStatus === 'live' ||
+    p.gameStatus === 'final' ||
+    p.locked === true ||
+    (p.kickoff !== null && p.kickoff <= now)
+  );
+}
+
 export function playerPoints(
   player: Player | null | undefined,
   now = Date.now(),

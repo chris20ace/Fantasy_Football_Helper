@@ -1603,7 +1603,9 @@ function LineupLab({
                     ? 'Reference mode'
                     : a.changes.length
                       ? 'Suggested lineup changes'
-                      : 'Keep your current lineup'}
+                      : a.complete
+                        ? 'Keep your current lineup'
+                        : 'No changes confirmed'}
                 </h2>
                 {actionable && a.gain !== null && a.gain > 0.05 && (
                   <div className="gain-number">
@@ -1618,7 +1620,7 @@ function LineupLab({
                       ? `${a.changes.map((p) => p.name).join(', ')} enter the suggested lineup. Review the slot assignments before making changes.`
                       : a.complete
                         ? 'No higher projected legal combination was found among your available players.'
-                        : 'No upgrade was found among the players we could evaluate. Missing data may hide a better option.'}
+                        : 'The lineup comparison is incomplete. Review the named data and eligibility checks below.'}
                 </p>
                 {a.removed.length > 0 && actionable && (
                   <p className="muted">

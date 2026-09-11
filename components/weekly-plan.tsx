@@ -25,6 +25,7 @@ import { analyzeMatchup } from '@/lib/fantasy/matchup';
 import type { League } from '@/lib/fantasy/types';
 import MatchupView from './matchup-view';
 import PlayerScore from './player-score';
+import LineupDataReview from './lineup-data-review';
 import { gameLabel, playerPoints, scoreProgress } from '@/lib/fantasy/points';
 import type { LeagueInsightsState } from './use-league-insights';
 
@@ -108,6 +109,13 @@ export default function WeeklyPlan({
         now,
       ).allFinal
     : false;
+  const missingActual = analysis?.review.some((r) => r.kind === 'actual');
+  const uncertainLocks = analysis?.review.some((r) => r.kind === 'lock');
+  const missingBench =
+    analysis?.review.filter((r) => r.kind !== 'lock' && r.slot === 'Bench') ??
+    [];
+  const allStarterScores =
+    analysis?.coverage.starterScores === analysis?.coverage.starterSlots;
   const copy = async () => {
     if (!report || !analysis?.enabled) return;
     try {
@@ -202,21 +210,31 @@ export default function WeeklyPlan({
                     {!analysis.enabled
                       ? 'Lineup advice is paused'
                       : lineupFinal
-                        ? 'Your lineup is final'
+                        ? allStarterScores
+                          ? 'Your lineup is final'
+                          : 'Waiting for final scores'
                         : moves.length
                           ? `${moves.length} ${moves.length === 1 ? 'slot change' : 'slot changes'} to review`
                           : analysis.complete
                             ? 'Your best projected lineup is already set'
-                            : 'Review your lineup’s missing data'}
+                            : missingActual
+                              ? 'Waiting for player scores'
+                              : uncertainLocks
+                                ? 'Lineup eligibility needs confirmation'
+                                : allStarterScores && missingBench.length
+                                  ? `${missingBench.length} bench ${missingBench.length === 1 ? 'player couldn’t' : 'players couldn’t'} be compared`
+                                  : 'A starting slot needs review'}
                   </h2>
                   <p>
                     {!analysis.enabled
                       ? analysis.reasons[0]
                       : lineupFinal
-                        ? 'Your starters have finished. Their actual points are shown below.'
+                        ? allStarterScores
+                          ? 'Your starters have finished. Their actual points are shown below.'
+                          : 'Your starters have finished. The missing final scores are identified below; old projections are not substituted.'
                         : analysis.complete
                           ? 'The highest projected legal combination using your league provider’s points, with game locks respected.'
-                          : 'The best supported combination among evaluated players. Players with missing projections or unknown locks stay held for review.'}
+                          : 'We can show the available points, but cannot confirm the best lineup until the checks below are resolved.'}
                   </p>
                 </div>
                 {(analysis.currentTotal !== null ||
@@ -228,7 +246,9 @@ export default function WeeklyPlan({
                     </div>
                     <ArrowRight aria-hidden="true" size={18} />
                     <div>
-                      <span>Recommended</span>
+                      <span>
+                        {analysis.complete ? 'Recommended' : 'Evaluated lineup'}
+                      </span>
                       <strong>
                         {analysis.enabled
                           ? pts(analysis.recommendedTotal)
@@ -240,11 +260,12 @@ export default function WeeklyPlan({
                       <strong>
                         {analysis.enabled && analysis.gain !== null
                           ? `${analysis.gain > 0 ? '+' : ''}${pts(analysis.gain)}`
-                          : '—'}
+                          : 'Pending'}
                       </strong>
                     </div>
                   </div>
                 )}
+                <LineupDataReview analysis={analysis} now={now} />
                 <small>
                   {analysis.currentTotal === null &&
                   analysis.recommendedTotal === null
@@ -270,9 +291,7 @@ export default function WeeklyPlan({
                       </h2>
                       <p className="muted">
                         {starters} / {report.league.slots.length} slots filled ·{' '}
-                        {analysis.complete
-                          ? 'All required scores available'
-                          : 'Some scores or projections are pending'}
+                        {`${analysis.coverage.starterScores} / ${analysis.coverage.starterSlots} starter scores available`}
                         {analysis.issues.length > 0 &&
                           ` · ${analysis.issues.length} lineup alerts`}
                       </p>
@@ -325,7 +344,7 @@ export default function WeeklyPlan({
                                 ? 'All starters have finished. Their actual points are shown below.'
                                 : 'Keep your current starters. Check injuries again before kickoff.'
                               : analysis.enabled
-                                ? 'No supported swaps found. Open your lineup to review held players and missing estimates.'
+                                ? 'No changes confirmed. Review the named player checks above before changing your lineup.'
                                 : 'Choose the current week and refresh to get lineup recommendations.'}
                           </p>
                         </div>
@@ -445,8 +464,8 @@ export default function WeeklyPlan({
                       </p>
                       <details className="plan-evidence">
                         <summary>
-                          Lineup alerts & projection coverage (
-                          {analysis.issues.length} alerts)
+                          Lineup alerts & data checks (
+                          {analysis.issues.length + analysis.review.length})
                         </summary>
                         {analysis.issues.map((i, index) => (
                           <p key={index}>

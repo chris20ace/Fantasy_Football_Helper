@@ -60,6 +60,8 @@ export default function MatchupView({
   const editable = (row: Matchup['rows'][number]) =>
     !row.mine || (!isLocked(row.mine, now) && row.mine.locked === false);
   const canChange = m.available && m.rows.some(editable);
+  const allLocked =
+    m.rows.length > 0 && m.rows.every((r) => r.mine && isLocked(r.mine, now));
   const weakestEditable = m.rows.some(
     (row) => row.slot.label === m.weakest?.label && editable(row),
   );
@@ -88,10 +90,7 @@ export default function MatchupView({
       : reportedEdge === 0
         ? 'Currently tied'
         : `${reportedEdge > 0 ? 'You lead' : 'You trail'} by ${pts(Math.abs(reportedEdge))}`;
-  const gain =
-    m.suggested === null || m.submitted === null
-      ? null
-      : Math.max(0, m.suggested - m.submitted);
+  const gain = m.lineupGain;
   const teamCards = [
     {
       key: 'mine',
@@ -268,23 +267,29 @@ export default function MatchupView({
                       <h3>
                         {gamesFinished
                           ? 'This lineup is finished'
-                          : !canChange
+                          : allLocked
                             ? 'Your lineup is locked'
-                            : gain !== null && gain > 0.05
-                              ? `There’s ${pts(gain)} more in your lineup`
-                              : 'Make your remaining spots count'}
+                            : !m.lineupComplete
+                              ? 'Your lineup comparison needs review'
+                              : gain !== null && gain > 0.05
+                                ? `There’s ${pts(gain)} more in your lineup`
+                                : 'Make your remaining spots count'}
                       </h3>
                       <p>
                         {gamesFinished
                           ? 'Final scores replace projections for every finished starter.'
-                          : !canChange
+                          : allLocked
                             ? 'Played players stay in place. Scores update as their games progress.'
-                            : gain !== null && gain > 0.05
-                              ? `Your best available combination brings the comparison to ${delta(m.suggestedEdge)} points versus this opponent. Played slots stay locked.`
-                              : 'Review your available starters and waiver options before their games begin.'}
+                            : !m.lineupComplete
+                              ? 'Starter scores still count here. Missing player data or unconfirmed eligibility prevents a complete lineup recommendation; open the lineup for specific checks.'
+                              : gain !== null && gain > 0.05
+                                ? m.suggestedEdge === null
+                                  ? `Your available lineup can improve by ${pts(gain)} points. The opponent comparison is pending their missing scores.`
+                                  : `Your best available combination brings the comparison to ${delta(m.suggestedEdge)} points versus this opponent. Played slots stay locked.`
+                                : 'Review your available starters and waiver options before their games begin.'}
                       </p>
                     </div>
-                    {canChange && (
+                    {(canChange || !allLocked) && (
                       <Button onClick={() => onOpen('lab')}>
                         Review lineup <ArrowRight size={16} />
                       </Button>

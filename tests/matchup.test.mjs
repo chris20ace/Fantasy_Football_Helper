@@ -60,6 +60,25 @@ const report = () => ({
     },
   },
 });
+void test('complete matchup scores do not imply a complete lineup comparison', () => {
+  const r = report();
+  r.league.players.push(player('unprojected bench', null));
+  let m = analyzeMatchup(r, now);
+  assert.equal(m.available, true);
+  assert.equal(m.submitted, 18);
+  assert.equal(m.opposing, 21);
+  assert.equal(m.lineupComplete, false);
+  assert.equal(m.lineupGain, null);
+  r.league.players.pop();
+  r.league.players[0].locked = null;
+  m = analyzeMatchup(r, now);
+  assert.equal(m.lineupComplete, false);
+  assert.equal(m.lineupGain, null);
+  r.league.players[0].locked = false;
+  m = analyzeMatchup(r, now);
+  assert.equal(m.lineupComplete, true);
+  assert.equal(m.lineupGain, 7);
+});
 void test('native provider points choose and score the recommended lineup for both teams', () => {
   const r = report();
   for (const p of [...r.league.players, ...r.league.opponent.players])

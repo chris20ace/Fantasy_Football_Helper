@@ -17,6 +17,8 @@ export type Player = {
   gameStatus: GameStatus;
   opponent: string;
   locked: boolean | null;
+  lockReason?: string;
+  autoSubLock?: true;
   reserve: boolean;
   taxi: boolean;
 };
@@ -33,6 +35,7 @@ export type Standing = {
 export type League = {
   id: string;
   platform: Platform;
+  autoSubs?: boolean;
   name: string;
   teamName: string;
   url: string;
@@ -83,6 +86,13 @@ export type Analysis = {
   changes: Player[];
   removed: Player[];
   issues: { player: Player | null; slot: string; reason: string }[];
+  review: {
+    player: Player;
+    slot: string;
+    kind: 'projection' | 'actual' | 'game-status' | 'lock';
+    reason: string;
+  }[];
+  coverage: { starterScores: number; starterSlots: number };
   complete: boolean;
   enabled: boolean;
   reasons: string[];

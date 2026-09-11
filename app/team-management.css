@@ -114,6 +114,47 @@
 .plan-gain span {
   margin: 0;
 }
+.lineup-data-review {
+  grid-column: 1 / -1;
+  min-width: 0;
+  border: 1px solid #496382;
+  border-radius: 10px;
+  background: #1c385b;
+  padding: 16px;
+  font-size: 14px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.plan-priority .lineup-data-review p {
+  max-width: none;
+  margin: 8px 0 0;
+  font-size: 14px;
+}
+.lineup-data-review ul {
+  padding: 0;
+  margin: 12px 0;
+  list-style: none;
+  display: grid;
+  gap: 12px;
+}
+.lineup-data-review li strong,
+.lineup-data-review li span {
+  display: block;
+}
+.lineup-data-review li span {
+  color: #d0dced;
+}
+.lineup-data-review summary {
+  cursor: pointer;
+  padding: 12px 0;
+  font-weight: 650;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.lineup-data-review .lineup-confirmed-score {
+  border-top: 1px solid #496382;
+  padding-top: 12px;
+}
 .plan-actions-grid {
   display: grid;
   grid-template-columns: 1.2fr 1fr;

@@ -1,6 +1,7 @@
 /* Provider payloads are normalized here; account owners and credentials never leave this boundary. */
 /* oxlint-disable typescript/no-explicit-any */
 import { scoreSleeper } from './scoring.ts';
+import { applySleeperAutoSubLocks } from './autosubs.ts';
 import type { GameStatus } from './points.ts';
 import type { League, Player, Slot, Standing } from './types.ts';
 type Raw = Record<string, any>;
@@ -445,7 +446,7 @@ export function fromSleeper(
       });
     return players;
   };
-  const players = normalizeRoster(roster, me);
+  let players = normalizeRoster(roster, me);
   const startersValid = (values: unknown): boolean => {
     if (!Array.isArray(values) || values.length !== slots.length) return false;
     const ids = values.filter((id) => id !== '0');
@@ -484,19 +485,13 @@ export function fromSleeper(
   const reception = raw.scoring_settings?.rec ?? 0;
   const warnings = [];
   if (raw.settings?.max_subs) {
-    const uncertain = players.some(
-      (p: Player) =>
-        !p.reserve && !p.taxi && (p.locked === true || p.locked === null),
-    );
+    players = applySleeperAutoSubLocks(players);
+    const uncertain = players.some((p) => p.lockReason);
     warnings.push(
       uncertain
-        ? 'AutoSubs can lock a later player when their partner starts. Pairings are not exposed; remaining slots are held until you verify them in Sleeper.'
+        ? 'AutoSubs pairings are unavailable through this connection. Only players who could share a starting position with a started or unconfirmed player are held for verification in Sleeper.'
         : 'AutoSubs enabled: verify paired-player assignments in Sleeper before kickoff.',
     );
-    if (uncertain)
-      players.forEach((p: Player) => {
-        if (!p.locked) p.locked = null;
-      });
   }
   if (!me)
     warnings.push(
@@ -508,6 +503,7 @@ export function fromSleeper(
   return {
     id: `sleeper:${raw.league_id}`,
     platform: 'sleeper',
+    autoSubs: Number(raw.settings?.max_subs) > 0,
     name: raw.name,
     teamName: label(roster),
     url: `https://sleeper.com/leagues/${raw.league_id}/team`,
@@ -517,7 +513,7 @@ export function fromSleeper(
     currentWeek,
     fetchedAt: new Date().toISOString(),
     scoring: `${reception === 1 ? 'PPR' : reception === 0.5 ? 'Half PPR' : reception === 0 ? 'Standard' : `${reception} PPR`} · ${raw.total_rosters} teams`,
-    source: 'Rotowire via Sleeper · custom scoring estimate',
+    source: 'Sleeper / Rotowire · league-scored projections',
     stale: !ownRosterVerified,
     players,
     slots,
