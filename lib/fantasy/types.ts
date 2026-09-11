@@ -51,6 +51,9 @@ export type League = {
   actual: number | null;
   matchupProjection: number | null;
   opponent: {
+    id?: string;
+    players?: Player[];
+    rosterVerified?: boolean;
     name: string;
     actual: number | null;
     projection: number | null;

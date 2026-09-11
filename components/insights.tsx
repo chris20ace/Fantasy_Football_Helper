@@ -1,12 +1,6 @@
 'use client';
-import { useEffect, useMemo, useState } from 'react';
-import {
-  ArrowUpRight,
-  ChartNoAxesCombined,
-  RefreshCw,
-  Sparkles,
-  Target,
-} from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { ArrowUpRight, ChartNoAxesCombined, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -26,10 +20,11 @@ import {
 } from '@/components/ui/table';
 import { analyze, unavailable } from '@/lib/fantasy/analysis';
 import { rankWaivers } from '@/lib/fantasy/projections';
-import type { InsightReport, ProjectedPlayer } from '@/lib/fantasy/projections';
+import type { ProjectedPlayer } from '@/lib/fantasy/projections';
+import type { LeagueInsightsState } from './use-league-insights';
 import type { League } from '@/lib/fantasy/types';
 const pts = (n: number | null | undefined) => (n == null ? '—' : n.toFixed(1));
-const state = (p: ProjectedPlayer) =>
+const playerStatus = (p: ProjectedPlayer) =>
   p.bye
     ? 'Bye'
     : p.reserve
@@ -119,7 +114,9 @@ export default function Insights({
   week,
   now,
   blocked,
-  refreshKey,
+  state,
+  onLineup,
+  onRefresh,
 }: {
   leagues: League[];
   selected: string;
@@ -127,53 +124,17 @@ export default function Insights({
   week: number;
   now: number;
   blocked: boolean;
-  refreshKey: string;
+  state: LeagueInsightsState;
+  onLineup: () => void;
+  onRefresh: () => void;
 }) {
   const active = leagues.find((l) => l.id === selected) ?? leagues[0];
   const id = active?.id ?? '';
-  const [report, setReport] = useState<InsightReport | null>(null),
-    [error, setError] = useState(''),
-    [loading, setLoading] = useState(true),
-    [attempt, setAttempt] = useState(0);
+  const { report, error, loading } = state;
+  const refresh =
+    blocked || active?.stale || active?.error ? onRefresh : state.refresh;
   const [search, setSearch] = useState(''),
     [position, setPosition] = useState('ALL');
-  useEffect(() => {
-    if (!id) return;
-    const controller = new AbortController();
-    const load = async () => {
-      try {
-        const response = await fetch(
-          `/api/insights?league=${encodeURIComponent(id)}&week=${week}${attempt ? '&refresh=1' : ''}`,
-          { signal: controller.signal },
-        );
-        if (response.status === 401) {
-          window.location.assign('/login');
-          return;
-        }
-        const data = (await response.json()) as InsightReport & {
-          error?: string;
-        };
-        if (!response.ok)
-          throw new Error(data.error ?? 'Insights are unavailable.');
-        if (!controller.signal.aborted) setReport(data);
-      } catch (e) {
-        if (!controller.signal.aborted)
-          setError(
-            e instanceof Error ? e.message : 'Insights are unavailable.',
-          );
-      } finally {
-        if (!controller.signal.aborted) setLoading(false);
-      }
-    };
-    queueMicrotask(() => {
-      if (controller.signal.aborted) return;
-      setReport(null);
-      setError('');
-      setLoading(true);
-      void load();
-    });
-    return () => controller.abort();
-  }, [id, week, attempt, refreshKey]);
   const valid =
     report?.league.id === id && report.league.week === week ? report : null;
   const stale =
@@ -234,13 +195,9 @@ export default function Insights({
           </SelectContent>
         </Select>
         <span>{active.scoring}</span>
-        <Button
-          variant="outline"
-          disabled={loading}
-          onClick={() => setAttempt((a) => a + 1)}
-        >
+        <Button variant="outline" disabled={loading} onClick={refresh}>
           <RefreshCw size={15} className={loading ? 'spin' : ''} />
-          Refresh insights
+          Refresh waivers
         </Button>
       </div>
       {loading && (
@@ -256,7 +213,7 @@ export default function Insights({
       {error && (
         <div className="alert error" role="alert">
           <p>{error}</p>
-          <Button variant="outline" onClick={() => setAttempt((a) => a + 1)}>
+          <Button variant="outline" onClick={refresh}>
             Try again
           </Button>
         </div>
@@ -265,50 +222,10 @@ export default function Insights({
         <>
           {stale && (
             <div className="alert" aria-live="polite">
-              Refresh insights before acting. These figures are a previous
+              Refresh waivers before acting. These figures are a previous
               snapshot.
             </div>
           )}
-          <div className="insight-scoreboard">
-            <section className="insight-model-card">
-              <div className="eyebrow">SUNDAY DESK MODEL · WEEK {week}</div>
-              <h2>Projections based on playing time.</h2>
-              <p>
-                Current depth charts, roster availability and comparable
-                workloads come first. Then we apply your league’s scoring.
-              </p>
-              <span>
-                <Sparkles size={15} />
-                {
-                  valid.league.players.filter((p) => p.forecast.points !== null)
-                    .length
-                }{' '}
-                / {valid.league.players.length} forecasts pass the role screen
-              </span>
-            </section>
-            <section className="panel insight-metric">
-              <Target size={22} />
-              <span>Suggested lineup · model points</span>
-              <b>
-                {pts(analysis.recommendedTotal)}
-                <small> pts</small>
-              </b>
-              <p>
-                {analysis.enabled
-                  ? `${analysis.changes.length} starter changes suggested`
-                  : 'Research view · advice paused'}
-              </p>
-            </section>
-            <section className="panel insight-metric">
-              <ChartNoAxesCombined size={22} />
-              <span>Best potential waiver gain</span>
-              <b>
-                {waivers[0]?.gain != null ? `+${pts(waivers[0].gain)}` : '—'}
-                <small> pts</small>
-              </b>
-              <p>Before any required roster move</p>
-            </section>
-          </div>
           <section className="panel insight-section">
             <div className="insight-section-head">
               <div>
@@ -357,7 +274,9 @@ export default function Insights({
                     <div className="insight-player-meta">
                       {pick.player.position} · {pick.player.team} ·{' '}
                       {pick.player.opponent || 'Schedule unconfirmed'}{' '}
-                      {state(pick.player) && <b>{state(pick.player)}</b>}
+                      {playerStatus(pick.player) && (
+                        <b>{playerStatus(pick.player)}</b>
+                      )}
                     </div>
                     <div className="waiver-values">
                       <div>
@@ -429,7 +348,8 @@ export default function Insights({
               </details>
             )}
           </section>
-          <section className="panel insight-section">
+          <details className="panel insight-section player-research">
+            <summary>Player projections & supporting research</summary>
             <div className="insight-section-head">
               <div>
                 <div className="eyebrow">INDEPENDENT FORECASTS</div>
@@ -497,7 +417,7 @@ export default function Insights({
                             <strong>{p.name}</strong>
                             <span>
                               {p.position} · {p.team}
-                              {state(p) ? ` · ${state(p)}` : ''}
+                              {playerStatus(p) ? ` · ${playerStatus(p)}` : ''}
                             </span>
                           </summary>
                           <RoleDetails player={p} />
@@ -602,38 +522,10 @@ export default function Insights({
             {!rows.length && (
               <p className="insight-empty">No players match these filters.</p>
             )}
-          </section>
-          <section className="panel insight-section">
-            <div className="eyebrow">MODEL LINEUP</div>
-            <h2>Put those estimates to work.</h2>
-            <p>
-              Uses only players already on your roster. Locked starters stay in
-              place. The Lineup lab continues to use provider projections.
-            </p>
-            <div className="model-lineup-grid">
-              {analysis.assignments.map((a) => (
-                <div key={a.slot.id}>
-                  <span>{a.slot.label}</span>
-                  <strong>{a.recommended?.name ?? 'Empty slot'}</strong>
-                  <b>{pts(a.recommended?.projection)}</b>
-                  <small>
-                    {a.locked
-                      ? 'Locked'
-                      : a.recommended?.partial
-                        ? 'Verify role / data'
-                        : a.current?.id !== a.recommended?.id
-                          ? `For ${a.current?.name ?? 'empty slot'}`
-                          : 'Keep'}
-                  </small>
-                </div>
-              ))}
-            </div>
-            {analysis.reasons.map((reason) => (
-              <p className="insight-caution" key={reason}>
-                {reason}
-              </p>
-            ))}
-          </section>
+          </details>
+          <Button className="plan-main-button" onClick={onLineup}>
+            Review your recommended lineup
+          </Button>
           <details className="panel insight-method">
             <summary>How these projections work</summary>
             <p>

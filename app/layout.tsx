@@ -3,6 +3,7 @@ import './globals.css';
 import './desk.css';
 import './accounts.css';
 import './responsive.css';
+import './team-management.css';
 export const metadata: Metadata = {
   title: 'Sunday Desk | Your weekly fantasy edge',
   description: 'Your private fantasy football lineup and league workspace.',

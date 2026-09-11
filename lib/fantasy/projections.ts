@@ -34,6 +34,7 @@ export type ProjectedPlayer = Player & {
   role?: RoleAssessment;
   forecast: Forecast;
   providerProjection: number | null;
+  providerPartial?: boolean;
   availability?: string;
   waiverDate?: number | null;
 };
@@ -156,6 +157,7 @@ export function applyForecast(
   return {
     ...player,
     providerProjection: player.projection,
+    providerPartial: player.partial,
     forecast,
     role,
     modelExcluded: role?.excluded,

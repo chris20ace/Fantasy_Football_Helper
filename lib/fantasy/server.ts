@@ -1,19 +1,20 @@
 /* Upstream providers return polymorphic JSON. This boundary normalizes it into strict League/Player types. */
 /* oxlint-disable typescript/no-explicit-any */
-import { scoreSleeper } from './scoring';
+import { fromESPN, fromSleeper } from './providers.ts';
+export {
+  fromESPN,
+  fromSleeper,
+  espnPlayer,
+  gameInfo,
+  sleeperEligible,
+} from './providers.ts';
 import { loadWorkspace, readCache, saveCache } from '#dashboard-runtime';
 export { getPreferences, putPreferences } from '#dashboard-runtime';
-import type { Dashboard, League, Player, Slot, Standing } from './types';
+import type { Dashboard, League } from './types';
 
 type Raw = Record<string, any>;
 const SLEEPER = 'https://api.sleeper.app';
 const ESPN = 'https://lm-api-reads.fantasy.espn.com/apis/v3/games/ffl/seasons';
-const numeric = (n: unknown): number | null =>
-  typeof n === 'number' && Number.isFinite(n) ? n : null;
-const normalize = (v: unknown) =>
-  (typeof v === 'string' ? v : '').replace(/[{}]/g, '').toLowerCase();
-const abbreviation = (v: string) =>
-  ({ WSH: 'WAS', JAC: 'JAX', LA: 'LAR' })[v] ?? v;
 export async function json(
   url: string,
   cookie?: string,
@@ -122,406 +123,6 @@ export async function catalog(
   return result;
 }
 
-export function gameInfo(team: string, proTeams: Raw[], week: number) {
-  const pro = proTeams.find(
-    (t) => abbreviation(t.abbrev) === abbreviation(team),
-  );
-  const game = pro?.proGamesByScoringPeriod?.[String(week)]?.[0];
-  const other =
-    game && pro
-      ? proTeams.find(
-          (t) =>
-            t.id ===
-            (game.homeProTeamId === pro.id
-              ? game.awayProTeamId
-              : game.homeProTeamId),
-        )
-      : null;
-  return {
-    bye: pro?.byeWeek === week,
-    kickoff:
-      game && !game.startTimeTBD && game.validForLocking !== false
-        ? numeric(game.date)
-        : null,
-    opponent: other
-      ? `${game.homeProTeamId === pro?.id ? 'vs' : '@'} ${abbreviation(other.abbrev)}`
-      : '',
-  };
-}
-const espnSlot: Record<string, string> = {
-  '0': 'QB',
-  '1': 'TQB',
-  '2': 'RB',
-  '3': 'RB/WR',
-  '4': 'WR',
-  '5': 'WR/TE',
-  '6': 'TE',
-  '7': 'SUPERFLEX',
-  '8': 'DT',
-  '9': 'DE',
-  '10': 'LB',
-  '11': 'DL',
-  '12': 'CB',
-  '13': 'S',
-  '14': 'DB',
-  '15': 'IDP',
-  '16': 'D/ST',
-  '17': 'K',
-  '23': 'FLEX',
-};
-const positions: Record<string, string> = {
-  '1': 'QB',
-  '2': 'RB',
-  '3': 'WR',
-  '4': 'TE',
-  '5': 'K',
-  '16': 'DEF',
-  '9': 'DT',
-  '10': 'DE',
-  '11': 'LB',
-  '12': 'CB',
-  '13': 'S',
-  '17': 'EDR',
-};
-function makeSlots(counts: Raw): Slot[] {
-  return Object.entries(counts)
-    .filter(([k, v]) => !['20', '21', '24'].includes(k) && Number(v) > 0)
-    .flatMap(([key, count]) =>
-      Array.from({ length: Number(count) }, (_, i) => ({
-        id: `${key}:${i}`,
-        key,
-        label: espnSlot[key] ?? `Slot ${key}`,
-      })),
-    );
-}
-export function espnPlayer(
-  entry: Raw,
-  proTeams: Raw[],
-  week: number,
-  season: number,
-  currentWeek: number,
-  slot: string | null,
-): Player {
-  const pool = entry.playerPoolEntry ?? {},
-    p = pool.player ?? {},
-    team = abbreviation(
-      proTeams.find((t) => t.id === p.proTeamId)?.abbrev ?? 'FA',
-    );
-  const stat = (source: number) =>
-    (p.stats ?? []).find(
-      (s: Raw) =>
-        s.seasonId === season &&
-        s.scoringPeriodId === week &&
-        s.statSourceId === source &&
-        s.statSplitTypeId === 1,
-    );
-  const info = gameInfo(team, proTeams, week),
-    position = positions[String(p.defaultPositionId)] ?? '—';
-  const locked =
-    week === currentWeek && typeof pool.lineupLocked === 'boolean'
-      ? pool.lineupLocked
-      : info.kickoff !== null
-        ? info.kickoff <= Date.now()
-        : info.bye
-          ? false
-          : null;
-  return {
-    id: String(p.id ?? entry.playerId),
-    key: position === 'DEF' ? `def:${team}` : `espn:${p.id ?? entry.playerId}`,
-    name: p.fullName ?? 'Unknown player',
-    position,
-    team,
-    eligible: (p.eligibleSlots ?? []).map(String),
-    slot,
-    projection: numeric(stat(1)?.appliedTotal),
-    actual: numeric(stat(0)?.appliedTotal),
-    partial: false,
-    injury: p.injuryStatus ?? 'ACTIVE',
-    ...info,
-    locked,
-    reserve: entry.lineupSlotId === 21,
-    taxi: false,
-  };
-}
-export function fromESPN(
-  raw: Raw,
-  swid: string,
-  proTeams: Raw[],
-  week: number,
-  season: number,
-): League {
-  const team = raw.teams?.find((t: Raw) =>
-    (t.owners ?? []).some((o: string) => normalize(o) === normalize(swid)),
-  );
-  if (!team)
-    throw new Error('Your ESPN account is not a member of this league.');
-  const currentWeek = raw.status?.latestScoringPeriod ?? raw.scoringPeriodId,
-    settings = raw.settings ?? {},
-    slots = makeSlots(settings.rosterSettings?.lineupSlotCounts ?? {});
-  const periodEntry = Object.entries(
-    settings.scheduleSettings?.matchupPeriods ?? {},
-  ).find(([, v]) => Array.isArray(v) && v.includes(week));
-  const period = periodEntry ? Number(periodEntry[0]) : week;
-  const match = raw.schedule?.find(
-    (m: Raw) =>
-      m.matchupPeriodId === period &&
-      (m.home?.teamId === team.id || m.away?.teamId === team.id),
-  );
-  const mine = match?.home?.teamId === team.id ? match.home : match?.away,
-    other = match?.home?.teamId === team.id ? match?.away : match?.home;
-  const entries = team.roster?.entries ?? [];
-  const used: Record<string, number> = {};
-  const players = entries.map((e: Raw) => {
-    const key = String(e.lineupSlotId);
-    const index = used[key] ?? 0;
-    used[key] = index + 1;
-    const slot = slots.find((s) => s.id === `${key}:${index}`);
-    return espnPlayer(e, proTeams, week, season, currentWeek, slot?.id ?? null);
-  });
-  const standings = (raw.teams ?? [])
-    .map((t: Raw) => ({
-      id: String(t.id),
-      name: t.name ?? `${t.location ?? ''} ${t.nickname ?? ''}`.trim(),
-      wins: t.record?.overall?.wins ?? 0,
-      losses: t.record?.overall?.losses ?? 0,
-      ties: t.record?.overall?.ties ?? 0,
-      points: t.record?.overall?.pointsFor ?? 0,
-      mine: t.id === team.id,
-    }))
-    .sort((a: Standing, b: Standing) => b.wins - a.wins || b.points - a.points);
-  const rec = standings.find((t: Standing) => t.mine);
-  const warning: string[] = [];
-  if (week !== currentWeek)
-    warning.push(
-      'Roster reflects your current ESPN team, not a historical roster snapshot.',
-    );
-  if (
-    !['INDIVIDUAL_GAME'].includes(settings.rosterSettings?.lineupLocktimeType)
-  )
-    warning.push(
-      `League lock policy: ${settings.rosterSettings?.lineupLocktimeType ?? 'unknown'}. Verify lineup eligibility in ESPN.`,
-    );
-  if (settings.rosterSettings?.lineupLocktimeType !== 'INDIVIDUAL_GAME')
-    players.forEach((p: Player) => {
-      if (!p.locked) p.locked = null;
-    });
-  const recRule =
-    settings.scoringSettings?.scoringItems?.find((s: Raw) => s.statId === 53)
-      ?.points ?? 0;
-  return {
-    id: `espn:${raw.id}`,
-    platform: 'espn',
-    name: settings.name ?? 'ESPN league',
-    teamName:
-      team.name ?? `${team.location ?? ''} ${team.nickname ?? ''}`.trim(),
-    url: `https://fantasy.espn.com/football/team?leagueId=${raw.id}&teamId=${team.id}&seasonId=${season}`,
-    status: raw.draftDetail?.drafted ? 'in_season' : 'pre_draft',
-    week,
-    currentWeek,
-    season,
-    fetchedAt: new Date().toISOString(),
-    scoring: `${recRule === 1 ? 'PPR' : recRule === 0.5 ? 'Half PPR' : recRule === 0 ? 'Standard' : `${recRule} PPR`} · ${raw.teams.length} teams`,
-    source: 'ESPN · league-scored weekly projections',
-    players,
-    slots,
-    standings,
-    record: rec
-      ? `${rec.wins}–${rec.losses}${rec.ties ? `–${rec.ties}` : ''}`
-      : '—',
-    actual:
-      numeric(mine?.pointsByScoringPeriod?.[String(week)]) ??
-      (week === currentWeek ? numeric(mine?.totalPointsLive) : null),
-    matchupProjection:
-      week === currentWeek ? numeric(mine?.totalProjectedPointsLive) : null,
-    opponent: other
-      ? {
-          name:
-            raw.teams.find((t: Raw) => t.id === other.teamId)?.name ??
-            'Opponent',
-          actual:
-            numeric(other.pointsByScoringPeriod?.[String(week)]) ??
-            (week === currentWeek ? numeric(other.totalPointsLive) : null),
-          projection:
-            week === currentWeek
-              ? numeric(other.totalProjectedPointsLive)
-              : null,
-        }
-      : null,
-    warnings: warning,
-  };
-}
-
-export const sleeperEligible = (positions: string[], key: string) =>
-  key === 'FLEX'
-    ? positions.some((p) => ['RB', 'WR', 'TE'].includes(p))
-    : key === 'SUPER_FLEX'
-      ? positions.some((p) => ['QB', 'RB', 'WR', 'TE'].includes(p))
-      : key === 'REC_FLEX'
-        ? positions.some((p) => ['WR', 'TE'].includes(p))
-        : key === 'WRRB_FLEX'
-          ? positions.some((p) => ['WR', 'RB'].includes(p))
-          : key === 'IDP_FLEX'
-            ? positions.some((p) => ['DL', 'LB', 'DB'].includes(p))
-            : positions.includes(key);
-export function fromSleeper(
-  raw: Raw,
-  rosters: Raw[],
-  matches: Raw[],
-  users: Raw[],
-  details: Record<string, Raw>,
-  projections: Raw[],
-  proTeams: Raw[],
-  week: number,
-  season: number,
-  currentWeek: number,
-  sleeperUserId: string,
-): League {
-  const roster = rosters.find(
-    (r) =>
-      r.owner_id === sleeperUserId ||
-      (r.co_owners ?? []).includes(sleeperUserId),
-  );
-  if (!roster)
-    throw new Error('Sleeper roster membership could not be matched.');
-  const me = matches.find((m) => m.roster_id === roster.roster_id),
-    other = me?.matchup_id
-      ? matches.find(
-          (m) =>
-            m.matchup_id === me.matchup_id && m.roster_id !== roster.roster_id,
-        )
-      : null;
-  const label = (r: Raw | undefined) => {
-    const u = users.find((u) => u.user_id === r?.owner_id);
-    return (
-      u?.metadata?.team_name ?? u?.display_name ?? `Team ${r?.roster_id ?? ''}`
-    );
-  };
-  const slots = (raw.roster_positions ?? [])
-    .filter((k: string) => !['BN', 'IR'].includes(k))
-    .map((key: string, i: number) => ({
-      id: `${key}:${i}`,
-      key,
-      label: key === 'SUPER_FLEX' ? 'SUPERFLEX' : key === 'DEF' ? 'D/ST' : key,
-    }));
-  const starterIds =
-      (week === currentWeek ? me?.starters : undefined) ??
-      roster.starters ??
-      [],
-    playerIds = roster.players ?? [];
-  const players = playerIds
-    .filter((id: string) => id && id !== '0')
-    .map((id: string) => {
-      const d = details[id] ?? {},
-        projection = projections.find((p) => p.player_id === id),
-        meta = d.full_name ? d : (projection?.player ?? d);
-      const position = meta.position ?? (id.length <= 3 ? 'DEF' : '—'),
-        team = abbreviation(meta.team ?? (position === 'DEF' ? id : 'FA')),
-        info = gameInfo(team, proTeams, week);
-      const index = starterIds.indexOf(id),
-        eligible = (meta.fantasy_positions ?? [position]) as string[];
-      const scoring = scoreSleeper(
-        projection?.stats,
-        raw.scoring_settings ?? {},
-        position,
-      );
-      return {
-        id,
-        key:
-          position === 'DEF'
-            ? `def:${team}`
-            : d.espn_id
-              ? `espn:${d.espn_id}`
-              : `sleeper:${id}`,
-        name:
-          meta.full_name ??
-          (`${meta.first_name ?? ''} ${meta.last_name ?? ''}`.trim() ||
-            `Player ${id}`),
-        position,
-        team,
-        eligible: slots
-          .filter((s: Slot) => sleeperEligible(eligible, s.key))
-          .map((s: Slot) => s.key),
-        slot: index >= 0 ? (slots[index]?.id ?? null) : null,
-        ...scoring,
-        actual: numeric(me?.players_points?.[id]),
-        injury: meta.injury_status ?? 'ACTIVE',
-        ...info,
-        locked:
-          info.kickoff !== null
-            ? info.kickoff <= Date.now()
-            : info.bye
-              ? false
-              : null,
-        reserve: (roster.reserve ?? []).includes(id),
-        taxi: (roster.taxi ?? []).includes(id),
-      } as Player;
-    });
-  const standings = rosters
-    .map((r) => ({
-      id: String(r.roster_id),
-      name: label(r),
-      wins: r.settings?.wins ?? 0,
-      losses: r.settings?.losses ?? 0,
-      ties: r.settings?.ties ?? 0,
-      points: (r.settings?.fpts ?? 0) + (r.settings?.fpts_decimal ?? 0) / 100,
-      mine: r.roster_id === roster.roster_id,
-    }))
-    .sort((a, b) => b.wins - a.wins || b.points - a.points);
-  const record = standings.find((r) => r.mine)!;
-  const reception = raw.scoring_settings?.rec ?? 0;
-  const warnings = [];
-  if (raw.settings?.max_subs) {
-    const uncertain = players.some(
-      (p: Player) =>
-        !p.reserve && !p.taxi && (p.locked === true || p.locked === null),
-    );
-    warnings.push(
-      uncertain
-        ? 'AutoSubs can lock a later player when their partner starts. Pairings are not exposed; remaining slots are held until you verify them in Sleeper.'
-        : 'AutoSubs enabled: verify paired-player assignments in Sleeper before kickoff.',
-    );
-    if (uncertain)
-      players.forEach((p: Player) => {
-        if (!p.locked) p.locked = null;
-      });
-  }
-  if (!me)
-    warnings.push(
-      'No weekly matchup is available yet. Showing the current roster.',
-    );
-  warnings.push(
-    'Sleeper projections are supplemental Rotowire estimates, recalculated with your scoring rules. Sparse standard stats count as projected zero; unsupported custom scoring is flagged.',
-  );
-  return {
-    id: `sleeper:${raw.league_id}`,
-    platform: 'sleeper',
-    name: raw.name,
-    teamName: label(roster),
-    url: `https://sleeper.com/leagues/${raw.league_id}/team`,
-    status: raw.status,
-    season,
-    week,
-    currentWeek,
-    fetchedAt: new Date().toISOString(),
-    scoring: `${reception === 1 ? 'PPR' : reception === 0.5 ? 'Half PPR' : reception === 0 ? 'Standard' : `${reception} PPR`} · ${raw.total_rosters} teams`,
-    source: 'Rotowire via Sleeper · custom scoring estimate',
-    players,
-    slots,
-    standings,
-    record: `${record.wins}–${record.losses}${record.ties ? `–${record.ties}` : ''}`,
-    actual: numeric(me?.points),
-    matchupProjection: null,
-    opponent: other
-      ? {
-          name: label(rosters.find((r) => r.roster_id === other.roster_id)),
-          actual: numeric(other.points),
-          projection: null,
-        }
-      : null,
-    warnings,
-  };
-}
-
 export async function getDashboard(
   userId: string,
   weekInput: number | undefined,
@@ -536,7 +137,7 @@ export async function getDashboard(
     '';
   const espn = workspace.connections.find((c) => c.provider === 'espn');
   const namespace =
-    'user:' + encodeURIComponent(userId) + ':' + workspace.revision;
+    'user-v2:' + encodeURIComponent(userId) + ':' + workspace.revision;
   if (!configured.length)
     return {
       season: new Date().getFullYear(),
@@ -622,7 +223,23 @@ export async function getDashboard(
           r.owner_id === sleeperUserId ||
           (r.co_owners ?? []).includes(sleeperUserId),
       );
-      for (const id of roster?.players ?? []) if (id !== '0') ids.add(id);
+      const matches = r.value[2] as Raw[];
+      const me = matches.find((m) => m.roster_id === roster?.roster_id);
+      const peers =
+        me?.matchup_id != null
+          ? matches.filter(
+              (m) =>
+                m.matchup_id === me.matchup_id &&
+                m.roster_id !== roster?.roster_id,
+            )
+          : [];
+      const opponent = peers.length === 1 ? peers[0] : undefined;
+      for (const id of [
+        ...(roster?.players ?? []),
+        ...(me?.starters ?? []),
+        ...(opponent?.starters ?? []),
+      ])
+        if (id && id !== '0') ids.add(String(id));
     }
   });
   let details: Record<string, Raw> = {},

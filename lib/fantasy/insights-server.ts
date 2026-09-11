@@ -47,7 +47,7 @@ export async function getInsights(
   );
   if (!connection || !target)
     throw new Error('League is not connected to this workspace.');
-  const key = `insights-v3:${userId}:${workspace.revision}:${leagueId}:${target.season}:${week}`;
+  const key = `insights-v4:${userId}:${workspace.revision}:${leagueId}:${target.season}:${week}`;
   const old = await readCache(key, userId);
   if (old && Date.now() - old.updated < (refresh ? 20000 : 180000))
     return JSON.parse(old.value);
@@ -83,6 +83,10 @@ export async function getInsights(
     );
     league = fromESPN(raw, swid, proTeams, week, season);
     const espnWeek = league.currentWeek;
+    const forecastPlayers = [
+      ...league.players,
+      ...(league.opponent?.players ?? []),
+    ];
     const owned = new Set<string>();
     ownershipVerified =
       Array.isArray(raw.teams) &&
@@ -94,7 +98,7 @@ export async function getInsights(
     const [ownData, poolData] = await Promise.all([
       json(`${url}?view=kona_player_info&scoringPeriodId=${week}`, cookie, {
         players: {
-          filterIds: { value: league.players.map((p) => Number(p.id)) },
+          filterIds: { value: forecastPlayers.map((p) => Number(p.id)) },
         },
       }),
       json(
@@ -115,7 +119,7 @@ export async function getInsights(
       throw new Error('ESPN player history is temporarily unavailable.');
     const storedHistory = await ensureESPNStats(
       [
-        ...league.players.map((p) => p.id),
+        ...forecastPlayers.map((p) => p.id),
         ...poolData.players.map((p: Raw) => String(p.id)),
       ],
       season,
@@ -194,13 +198,22 @@ export async function getInsights(
           0,
       );
     };
-    players = league.players.map((p) => {
+    const forecastPlayer = (p: import('./types').Player) => {
       const entry = ownData.players.find((e: Raw) => String(e.id) === p.id);
       const result = entry
         ? forecast(entry, p)
         : roleForecast(p, [], depth[p.team], p.id, season, week, espnWeek);
       return applyForecast(p, result.forecast, result.role);
-    });
+    };
+    players = league.players.map(forecastPlayer);
+    if (league.opponent)
+      league = {
+        ...league,
+        opponent: {
+          ...league.opponent,
+          players: (league.opponent.players ?? []).map(forecastPlayer),
+        },
+      };
     candidates = poolData.players
       .filter(
         (e: Raw) =>
@@ -340,7 +353,27 @@ export async function getInsights(
     );
     if (!myRoster)
       throw new Error('Your roster membership could not be verified.');
-    const ids = new Set<string>([...shortlist, ...(myRoster.players ?? [])]);
+    const myMatch = matches.find(
+      (m: Raw) => m.roster_id === myRoster.roster_id,
+    );
+    const opponentMatches =
+      myMatch?.matchup_id != null
+        ? matches.filter(
+            (m: Raw) =>
+              m.matchup_id === myMatch.matchup_id &&
+              m.roster_id !== myRoster.roster_id,
+          )
+        : [];
+    const opponentStarters =
+      opponentMatches.length === 1 ? (opponentMatches[0].starters ?? []) : [];
+    const ids = new Set<string>(
+      [
+        ...shortlist,
+        ...(myRoster.players ?? []),
+        ...(myMatch?.starters ?? []),
+        ...opponentStarters,
+      ].filter((id) => id && id !== '0'),
+    );
     const details = await catalog(
       ids,
       refresh,
@@ -382,6 +415,14 @@ export async function getInsights(
       return applyForecast(p, result.forecast, result.role);
     };
     players = league.players.map(scoredRole);
+    if (league.opponent)
+      league = {
+        ...league,
+        opponent: {
+          ...league.opponent,
+          players: (league.opponent.players ?? []).map(scoredRole),
+        },
+      };
     // Reuse the exact provider normalization for eligibility, schedules, injury labels and AutoSubs gates.
     const candidateRoster = {
       ...myRoster,
