@@ -1,6 +1,7 @@
 import { buildTeamRosterPlan } from './team-roster-plan.ts';
 import { analyzeMatchup } from './matchup.ts';
 import { isLocked } from './points.ts';
+import { actionFingerprint } from './action-decisions.ts';
 import type { League } from './types.ts';
 import type { InsightEntry } from './insight-queue.ts';
 
@@ -18,6 +19,7 @@ export type PlanOption = {
 };
 export type PlanAction = {
   id: string;
+  fingerprint: string;
   leagueId: string;
   kind:
     | 'lineup'
@@ -96,19 +98,33 @@ export function buildLeagueCommand(
   const add = (
     action: Omit<
       PlanAction,
-      'leagueId' | 'id' | 'due' | 'gain' | 'optional' | 'options'
+      | 'leagueId'
+      | 'id'
+      | 'fingerprint'
+      | 'due'
+      | 'gain'
+      | 'optional'
+      | 'options'
     > & {
       key: string;
+      review: unknown;
       due?: number | null;
       gain?: number | null;
       optional?: boolean;
       options?: PlanOption[];
     },
   ) => {
-    const { key, ...rest } = action;
+    const { key, review, ...rest } = action;
     actions.push({
       leagueId: league.id,
       id: `${league.id}:${key}`,
+      fingerprint: actionFingerprint([
+        1,
+        action.kind,
+        action.priority,
+        !!action.optional,
+        review,
+      ]),
       due: null,
       gain: null,
       optional: false,
@@ -125,6 +141,12 @@ export function buildLeagueCommand(
   if (stale || failed || source.error)
     add({
       key: 'connection',
+      review:
+        league.error || source.error
+          ? 'connection-error'
+          : stale
+            ? 'stale'
+            : 'check-failed',
       kind: 'connection',
       priority: 0,
       title:
@@ -155,6 +177,12 @@ export function buildLeagueCommand(
       const urgent = gaps.length > 0;
       add({
         key: 'lineup',
+        review: [
+          plan.repairs
+            .map((a) => [a.slot.id, a.current?.id, a.recommended?.id])
+            .sort(),
+          gaps.map((g) => [g.slot, g.player?.id, g.reason]).sort(),
+        ],
         kind: 'lineup',
         priority: urgent ? 0 : 2,
         title: urgent
@@ -190,6 +218,11 @@ export function buildLeagueCommand(
       );
       add({
         key: `injury:${issue.player!.id}`,
+        review: [
+          issue.player!.injury,
+          contingency?.replacements,
+          contingency?.fallback.missing,
+        ],
         kind: 'injury',
         priority: 1,
         title: `Monitor ${issue.player!.name}`,
@@ -203,6 +236,7 @@ export function buildLeagueCommand(
     if (checks.length)
       add({
         key: 'data',
+        review: checks.map((c) => [c.player.id, c.kind]).sort(),
         kind: 'data',
         priority: 1,
         title: `Check ${new Set(checks.map((c) => c.player.id)).size} player ${new Set(checks.map((c) => c.player.id)).size === 1 ? 'record' : 'records'}`,
@@ -241,6 +275,34 @@ export function buildLeagueCommand(
       }));
       add({
         key,
+        review: [
+          top.add.id,
+          top.drop?.id,
+          moves
+            .map((m) => [
+              m.add.id,
+              m.drop?.id,
+              m.coverage,
+              m.byeHelp,
+              m.byeHarm,
+              m.starts?.slot.id,
+              m.starts?.replaces?.id,
+              m.depthLoss
+                ? [
+                    m.depthLoss.starter.id,
+                    m.depthLoss.coverage,
+                    m.depthLoss.gain < -0.9999,
+                    m.depthLoss.before.assignments
+                      .map((a) => [a.slot.id, a.player?.id])
+                      .sort(),
+                    m.depthLoss.after.assignments
+                      .map((a) => [a.slot.id, a.player?.id])
+                      .sort(),
+                  ]
+                : null,
+            ])
+            .sort(),
+        ],
         kind:
           top.kind === 'repair' || top.kind === 'upgrade' ? 'waiver' : top.kind,
         priority:
@@ -274,6 +336,12 @@ export function buildLeagueCommand(
     for (const bye of plan.byes.filter((b) => b.missing || b.uncertain)) {
       add({
         key: `bye:${bye.week}`,
+        review: [
+          bye.week,
+          bye.absent.map((p) => p.id).sort(),
+          bye.missing,
+          bye.uncertain,
+        ],
         kind: 'bye',
         priority: 5,
         title: `Plan for Week ${bye.week} byes`,
@@ -290,6 +358,7 @@ export function buildLeagueCommand(
     )
       add({
         key: 'roster-check',
+        review: plan.reason,
         kind: 'data',
         priority: 2,
         title: 'Review roster restrictions',
@@ -307,6 +376,7 @@ export function buildLeagueCommand(
     )
       add({
         key: 'matchup',
+        review: [source.opponent?.name, matchup.weakest?.label],
         kind: 'matchup',
         priority: 6,
         title: `${pts(-matchup.submittedEdge)} points behind in the matchup outlook`,

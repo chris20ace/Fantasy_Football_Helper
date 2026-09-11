@@ -12,6 +12,9 @@ import {
   Target,
   Trophy,
   Zap,
+  Check,
+  X,
+  Undo2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -21,6 +24,20 @@ import {
 import type { PlanAction, PlanDestination } from '@/lib/fantasy/command-center';
 import type { InsightEntries, InsightEntry } from '@/lib/fantasy/insight-queue';
 import type { League } from '@/lib/fantasy/types';
+import {
+  actionDecisionKey,
+  actionDecisionStatus,
+} from '@/lib/fantasy/action-decisions';
+import type {
+  ActionDecisions,
+  ActionDecisionStatus,
+} from '@/lib/fantasy/action-decisions';
+
+type DecisionHandler = (
+  key: string,
+  fingerprint: string,
+  status: ActionDecisionStatus | null,
+) => void;
 
 const EMPTY: string[] = [];
 const icons = {
@@ -60,17 +77,23 @@ function ActionRow({
   checking,
   onNavigate,
   onRetry,
+  decision,
+  canSave,
+  onDecision,
 }: {
   action: PlanAction;
   league: League;
   checking: boolean;
   onNavigate: (d: PlanDestination) => void;
   onRetry: (id: string) => void;
+  decision: ActionDecisionStatus | null;
+  canSave: boolean;
+  onDecision: DecisionHandler;
 }) {
   const Icon = icons[action.kind];
   return (
     <article
-      className={`command-action ${action.optional ? 'command-optional' : ''}`}
+      className={`command-action ${action.optional ? 'command-optional' : ''} ${decision ? 'command-reviewed-action' : ''}`}
       id={`command-action-${action.id}`}
     >
       <div className="command-action-top">
@@ -78,7 +101,11 @@ function ActionRow({
           <Icon size={16} />
           {labels[action.kind]}
         </span>
-        {action.optional ? (
+        {decision ? (
+          <span className="command-tag">
+            {decision === 'acknowledged' ? 'Acknowledged' : 'Dismissed'}
+          </span>
+        ) : action.optional ? (
           <span className="command-tag">Optional · small edge</span>
         ) : action.priority === 0 ? (
           <span className="command-tag command-urgent">Address first</span>
@@ -116,6 +143,56 @@ function ActionRow({
             <RefreshCw size={15} className={checking ? 'spin' : ''} />
             Retry
           </Button>
+        )}
+      </div>
+      <div
+        className="command-review-controls"
+        role="group"
+        aria-label={`Review decision: ${action.title}`}
+      >
+        {decision ? (
+          <Button
+            variant="outline"
+            disabled={!canSave}
+            onClick={() =>
+              onDecision(
+                actionDecisionKey(action, league),
+                action.fingerprint,
+                null,
+              )
+            }
+          >
+            <Undo2 size={15} /> Restore to queue
+          </Button>
+        ) : (
+          <>
+            <Button
+              variant="outline"
+              disabled={!canSave}
+              onClick={() =>
+                onDecision(
+                  actionDecisionKey(action, league),
+                  action.fingerprint,
+                  'acknowledged',
+                )
+              }
+            >
+              <Check size={15} /> Acknowledge
+            </Button>
+            <Button
+              variant="ghost"
+              disabled={!canSave}
+              onClick={() =>
+                onDecision(
+                  actionDecisionKey(action, league),
+                  action.fingerprint,
+                  'dismissed',
+                )
+              }
+            >
+              <X size={15} /> Dismiss
+            </Button>
+          </>
         )}
       </div>
       {action.options.length > 1 && (
@@ -204,6 +281,10 @@ export default function CommandCenter({
   protectedByLeague,
   onNavigate,
   onRetry,
+  actionDecisions,
+  preferencesReady,
+  saving,
+  onDecision,
 }: {
   leagues: League[];
   entries: InsightEntries;
@@ -212,12 +293,46 @@ export default function CommandCenter({
   protectedByLeague: Record<string, string[]>;
   onNavigate: (d: PlanDestination) => void;
   onRetry: (id: string) => void;
+  actionDecisions: ActionDecisions;
+  preferencesReady: boolean;
+  saving: boolean;
+  onDecision: DecisionHandler;
 }) {
   const readCommands = useMemo(() => createCommandReader(), []);
-  const commands = useMemo(
+  const rawCommands = useMemo(
     () => readCommands(leagues, entries, now, blocked, protectedByLeague),
     [readCommands, leagues, entries, now, blocked, protectedByLeague],
   );
+  const commands = rawCommands.map((c) => {
+    const actions = c.actions.filter(
+      (a) => !actionDecisionStatus(a, c.league, actionDecisions),
+    );
+    return {
+      ...c,
+      actions,
+      reviewedCount: c.actions.length - actions.length,
+      statusLabel:
+        c.status === 'actions'
+          ? actions.length
+            ? `${actions.length} decisions to review`
+            : 'Current decisions reviewed'
+          : c.statusLabel,
+    };
+  });
+  const reviewed = rawCommands
+    .flatMap((c) =>
+      c.actions.flatMap((action) => {
+        const decision = actionDecisionStatus(
+          action,
+          c.league,
+          actionDecisions,
+        );
+        return decision
+          ? [{ action, decision, league: c.league, checking: c.checking }]
+          : [];
+      }),
+    )
+    .sort((a, b) => comparePlanActions(a.action, b.action));
   const actions = commands.flatMap((c) => c.actions).sort(comparePlanActions);
   const teamsWithDecisions = commands.filter(
     (c) => c.actions.length > 0,
@@ -295,9 +410,24 @@ export default function CommandCenter({
                 All leagues, ordered by urgency. Pickups are separate
                 comparisons; their gains are not added together.
               </p>
+              <p className="command-review-hint">
+                Acknowledge or dismiss items to clear your queue. Changed
+                recommendations return for review.
+              </p>
             </div>
             <span className="command-count">{actions.length}</span>
           </div>
+          {!preferencesReady && (
+            <p className="command-review-loading" role="status">
+              Waiting for saved preferences. If review buttons stay unavailable,
+              refresh the page.
+            </p>
+          )}
+          {saving && (
+            <p className="command-review-loading" role="status">
+              Saving your choice…
+            </p>
+          )}
           {actions.length ? (
             actions.map((action) => {
               const c = commands.find((c) => c.league.id === action.leagueId)!;
@@ -309,6 +439,9 @@ export default function CommandCenter({
                   checking={c.checking}
                   onNavigate={onNavigate}
                   onRetry={onRetry}
+                  decision={null}
+                  canSave={preferencesReady && !saving}
+                  onDecision={onDecision}
                 />
               );
             })
@@ -318,16 +451,44 @@ export default function CommandCenter({
               <h3>
                 {pending
                   ? 'Your teams are being checked'
-                  : commands.every((c) => c.status === 'planning')
-                    ? 'Your leagues are in planning mode'
-                    : 'No changes flagged across your teams'}
+                  : reviewed.length
+                    ? 'All current decisions reviewed'
+                    : commands.every((c) => c.status === 'planning')
+                      ? 'Your leagues are in planning mode'
+                      : 'No changes flagged across your teams'}
               </h3>
               <p>
                 {pending
                   ? 'Waiver comparisons and matchup checks will join the queue as they finish.'
-                  : 'Every connected league is listed here. Open a team for its complete lineup, roster plan or matchup.'}
+                  : reviewed.length
+                    ? 'Your choices are saved below. Reviewing an item does not change your lineup or submit a waiver.'
+                    : 'Every connected league is listed here. Open a team for its complete lineup, roster plan or matchup.'}
               </p>
             </div>
+          )}
+          {reviewed.length > 0 && (
+            <details className="command-reviewed">
+              <summary>
+                Reviewed items <span>{reviewed.length}</span>
+              </summary>
+              <p>
+                Acknowledged and dismissed items for this week. Restore any item
+                to put it back in your queue.
+              </p>
+              {reviewed.map(({ action, decision, league, checking }) => (
+                <ActionRow
+                  key={action.id}
+                  action={action}
+                  league={league}
+                  checking={checking}
+                  onNavigate={onNavigate}
+                  onRetry={onRetry}
+                  decision={decision}
+                  canSave={preferencesReady && !saving}
+                  onDecision={onDecision}
+                />
+              ))}
+            </details>
           )}
         </section>
         <aside
@@ -386,11 +547,13 @@ export default function CommandCenter({
                 </button>
               ) : (
                 <p className="command-ready-message">
-                  {c.status === 'checking'
-                    ? 'Comparing your lineup, waiver options and opponent.'
-                    : c.status === 'planning'
-                      ? 'Rosters are available for reference. Weekly moves will appear when this league is active.'
-                      : 'No required changes found among the checked options. Keep your useful roster depth.'}
+                  {c.reviewedCount
+                    ? `${c.reviewedCount} flagged ${c.reviewedCount === 1 ? 'decision' : 'decisions'} reviewed. Open this team any time to check its details.`
+                    : c.status === 'checking'
+                      ? 'Comparing your lineup, waiver options and opponent.'
+                      : c.status === 'planning'
+                        ? 'Rosters are available for reference. Weekly moves will appear when this league is active.'
+                        : 'No required changes found among the checked options. Keep your useful roster depth.'}
                 </p>
               )}
               <div className="command-league-links">

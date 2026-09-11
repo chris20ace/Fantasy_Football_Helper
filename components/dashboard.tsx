@@ -82,6 +82,7 @@ type Preferences = {
   revision: number;
   notes: Record<string, string>;
   reviewed: Record<string, boolean>;
+  actionDecisions?: import('@/lib/fantasy/action-decisions').ActionDecisions;
 };
 const menu = [
   { id: 'overview', label: 'Plan', icon: LayoutDashboard },
@@ -264,6 +265,7 @@ export default function FantasyDashboard({
     [notice, setNotice] = useState(''),
     [search, setSearch] = useState(''),
     [position, setPosition] = useState('ALL');
+  const preferenceWrite = useRef(false);
   const [protectedByLeague, setProtectedByLeague] = useState<
     Record<string, string[]>
   >({});
@@ -347,18 +349,23 @@ export default function FantasyDashboard({
       })
       .catch(() =>
         setNotice(
-          'Notes could not load. Refresh the page before saving changes.',
+          'Saved preferences could not load. Refresh before changing notes or reviewing actions.',
         ),
       );
   }, []);
   const save = async (value: Preferences) => {
-    if (!prefReady) return;
+    if (!prefReady || preferenceWrite.current) return;
+    preferenceWrite.current = true;
     setSaving(true);
     try {
       const r = await fetch('/api/preferences', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(value),
+        body: JSON.stringify({
+          notes: value.notes,
+          reviewed: value.reviewed,
+          revision: value.revision,
+        }),
       });
       const result = (await r.json()) as { error?: string; revision: number };
       if (!r.ok)
@@ -370,6 +377,64 @@ export default function FantasyDashboard({
         e instanceof Error ? e.message : 'Could not save. Please try again.',
       );
     } finally {
+      preferenceWrite.current = false;
+      setSaving(false);
+    }
+  };
+  const saveActionDecision = async (
+    key: string,
+    fingerprint: string,
+    status:
+      | import('@/lib/fantasy/action-decisions').ActionDecisionStatus
+      | null,
+  ) => {
+    if (!prefReady || preferenceWrite.current) return;
+    preferenceWrite.current = true;
+    setSaving(true);
+    try {
+      const response = await fetch('/api/preferences', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          key,
+          fingerprint,
+          status,
+          revision: preferences.revision,
+        }),
+      });
+      if (response.status === 401) {
+        window.location.assign('/login');
+        return;
+      }
+      const result = (await response.json()) as {
+        error?: string;
+        revision: number;
+        actionDecisions: import('@/lib/fantasy/action-decisions').ActionDecisions;
+      };
+      if (!response.ok)
+        throw new Error(
+          result.error ?? 'Could not update this action. Please try again.',
+        );
+      setPreferences((current) => ({
+        ...current,
+        actionDecisions: result.actionDecisions,
+        revision: result.revision,
+      }));
+      setNotice(
+        status === 'acknowledged'
+          ? 'Action acknowledged. Find it in Reviewed items.'
+          : status === 'dismissed'
+            ? 'Action dismissed. You can restore it from Reviewed items.'
+            : 'Action restored to your queue.',
+      );
+    } catch (error) {
+      setNotice(
+        error instanceof Error
+          ? error.message
+          : 'Could not update this action. Please try again.',
+      );
+    } finally {
+      preferenceWrite.current = false;
       setSaving(false);
     }
   };
@@ -680,6 +745,10 @@ export default function FantasyDashboard({
                     now={now}
                     blocked={!!error}
                     protectedByLeague={protectedByLeague}
+                    actionDecisions={preferences.actionDecisions ?? {}}
+                    preferencesReady={prefReady}
+                    saving={saving}
+                    onDecision={saveActionDecision}
                     onNavigate={navigateFromPlan}
                     onRetry={(id) => {
                       const league = leagues.find((l) => l.id === id);

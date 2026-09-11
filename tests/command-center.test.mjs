@@ -1,6 +1,14 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  actionDecisionKey,
+  actionDecisionStatus,
+} from '../lib/fantasy/action-decisions.ts';
+import {
+  updateActionDecisions,
+  parseActionDecisionUpdate,
+} from '../lib/accounts/preferences.ts';
+import {
   buildLeagueCommand,
   comparePlanActions,
   moveTarget,
@@ -75,6 +83,155 @@ const entry = (l, candidates = []) => ({
     ownershipVerified: true,
   },
   error: '',
+});
+
+test('review decisions survive routine projections, but changed players and new weeks return to the queue', () => {
+  const l = league();
+  l.players.push(player('better', 'QB', 20));
+  l.rosterRules.benchSlots = 1;
+  const action = buildLeagueCommand(l, entry(l), now).actions.find(
+    (a) => a.kind === 'lineup',
+  );
+  const key = actionDecisionKey(action, l);
+  const saved = updateActionDecisions(
+    {},
+    {
+      key,
+      fingerprint: action.fingerprint,
+      status: 'acknowledged',
+      revision: 0,
+    },
+    now,
+  );
+  assert.equal(actionDecisionStatus(action, l, saved), 'acknowledged');
+  const refreshed = structuredClone(l);
+  refreshed.fetchedAt = new Date(now + 1000).toISOString();
+  refreshed.players.forEach((p) => {
+    p.projection += 0.2;
+  });
+  const unchanged = buildLeagueCommand(
+    refreshed,
+    entry(refreshed),
+    now + 1000,
+  ).actions.find((a) => a.kind === 'lineup');
+  assert.equal(unchanged.fingerprint, action.fingerprint);
+  assert.equal(
+    actionDecisionStatus(unchanged, refreshed, saved),
+    'acknowledged',
+  );
+  refreshed.players[1] = player('different-backup', 'QB', 25);
+  const changed = buildLeagueCommand(
+    refreshed,
+    entry(refreshed),
+    now,
+  ).actions.find((a) => a.kind === 'lineup');
+  assert.equal(changed.id, action.id);
+  assert.equal(actionDecisionStatus(changed, refreshed, saved), null);
+  assert.equal(actionDecisionStatus(action, { ...l, week: 2 }, saved), null);
+  assert.equal(
+    actionDecisionStatus(action, { ...l, season: 2027 }, saved),
+    null,
+  );
+  const otherLeague = { ...l, id: 'espn:1' };
+  const other = buildLeagueCommand(
+    otherLeague,
+    entry(otherLeague),
+    now,
+  ).actions.find((a) => a.kind === 'lineup');
+  assert.equal(actionDecisionStatus(other, otherLeague, saved), null);
+});
+
+test('dismissed injury and waiver advice resurfaces when the designation or add/drop changes', () => {
+  const l = league();
+  l.players[0].injury = 'QUESTIONABLE';
+  l.players.push(player('backup', 'QB', 5));
+  l.rosterRules.benchSlots = 1;
+  const injury = buildLeagueCommand(l, entry(l), now).actions.find(
+    (a) => a.kind === 'injury',
+  );
+  const decisions = updateActionDecisions(
+    {},
+    {
+      key: actionDecisionKey(injury, l),
+      fingerprint: injury.fingerprint,
+      status: 'dismissed',
+      revision: 0,
+    },
+    now,
+  );
+  l.players[0].injury = 'DOUBTFUL';
+  const changedInjury = buildLeagueCommand(l, entry(l), now).actions.find(
+    (a) => a.kind === 'injury',
+  );
+  assert.equal(actionDecisionStatus(changedInjury, l, decisions), null);
+  l.players[0].injury = 'ACTIVE';
+  const candidate = player('waiver-qb', 'QB', 25);
+  const waiver = buildLeagueCommand(l, entry(l, [candidate]), now).actions.find(
+    (a) => a.kind === 'waiver',
+  );
+  assert.ok(waiver);
+  candidate.projection += 0.1;
+  const same = buildLeagueCommand(
+    l,
+    entry(l, [candidate]),
+    now + 1000,
+  ).actions.find((a) => a.kind === 'waiver');
+  assert.equal(same.fingerprint, waiver.fingerprint);
+  l.players[1] = player('different-drop', 'QB', 5);
+  const changedDrop = buildLeagueCommand(
+    l,
+    entry(l, [candidate]),
+    now,
+  ).actions.find((a) => a.kind === 'waiver');
+  assert.notEqual(changedDrop.fingerprint, waiver.fingerprint);
+});
+
+test('restoring decisions is reversible and retained review history is bounded', () => {
+  const update = {
+    key: '2026:1:sleeper:1:lineup',
+    fingerprint: '0123456789abcdef',
+    status: 'dismissed',
+    revision: 0,
+  };
+  const saved = updateActionDecisions({}, update, now);
+  assert.equal(saved[update.key].status, 'dismissed');
+  const restored = updateActionDecisions(
+    saved,
+    { ...update, status: null },
+    now + 1,
+  );
+  assert.deepEqual(restored, {});
+  assert.equal(saved[update.key].status, 'dismissed');
+  let history = {};
+  for (let i = 0; i < 300; i++)
+    history = updateActionDecisions(
+      history,
+      { ...update, key: '2026:1:sleeper:1:action' + i },
+      now + i,
+    );
+  assert.equal(Object.keys(history).length, 256);
+  assert.ok(history['2026:1:sleeper:1:action299']);
+  assert.equal(history['2026:1:sleeper:1:action0'], undefined);
+});
+
+test('action preference updates reject malformed statuses, scopes and revisions', () => {
+  const update = {
+    key: '2026:1:sleeper:1:lineup',
+    fingerprint: '0123456789abcdef',
+    status: 'acknowledged',
+    revision: 2,
+  };
+  assert.deepEqual(parseActionDecisionUpdate(update), update);
+  for (const patch of [
+    { status: 'done' },
+    { status: undefined },
+    { key: '__proto__' },
+    { key: '2026:19:sleeper:1' },
+    { fingerprint: 'wrong' },
+    { revision: -1 },
+    { revision: 0.5 },
+  ])
+    assert.throws(() => parseActionDecisionUpdate({ ...update, ...patch }));
 });
 void test('ready, predraft, failed and loading leagues all have explicit command-center states', () => {
   const ready = league(),
@@ -272,4 +429,49 @@ void test('urgent decisions precede optional gains across differently scored lea
     },
     b = { id: 'two', priority: 0, optional: true, due: now + 1, gain: 30 };
   assert.ok(comparePlanActions(a, b) < 0);
+});
+test('waiver depth-loss score updates preserve acknowledgement', () => {
+  const l = league();
+  l.players = [
+    player('RB', 'RB', 10, { slot: 'RB:0' }),
+    player('backup', 'RB', 7),
+  ];
+  l.slots = [slot('RB'), slot('WR')];
+  l.rosterRules.benchSlots = 0;
+  const candidate = player('newWR', 'WR', 12);
+  const before = buildLeagueCommand(l, entry(l, [candidate]), now, false, [
+    'RB',
+  ]);
+  const action = before.actions.find((a) => a.kind === 'waiver');
+  const move = before.plan.allMoves[0];
+  assert.equal(move.kind, 'repair');
+  assert.equal(move.drop.id, 'backup');
+  assert.equal(move.depthLoss.starter.id, 'RB');
+  assert.equal(move.depthLoss.coverage, -1);
+  const saved = updateActionDecisions(
+    {},
+    {
+      key: actionDecisionKey(action, l),
+      fingerprint: action.fingerprint,
+      status: 'acknowledged',
+      revision: 0,
+    },
+    now,
+  );
+  const refreshed = structuredClone(l);
+  refreshed.players.forEach((p) => {
+    p.projection += 0.2;
+  });
+  refreshed.fetchedAt = new Date(now + 1000).toISOString();
+  const after = buildLeagueCommand(
+    refreshed,
+    entry(refreshed, [{ ...candidate, projection: 12.2 }]),
+    now + 1000,
+    false,
+    ['RB'],
+  );
+  const next = after.actions.find((a) => a.kind === 'waiver');
+  assert.notEqual(after.plan.allMoves[0].depthLoss.gain, move.depthLoss.gain);
+  assert.equal(next.fingerprint, action.fingerprint);
+  assert.equal(actionDecisionStatus(next, refreshed, saved), 'acknowledged');
 });

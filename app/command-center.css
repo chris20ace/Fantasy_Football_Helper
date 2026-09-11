@@ -132,6 +132,47 @@
 .command-action.command-optional {
   border-left-color: #aebed4;
 }
+.command-action.command-reviewed-action {
+  border-left-color: #9cabbf;
+  background: #f8faff;
+}
+.command-review-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #e0e7f2;
+}
+.command-review-controls button {
+  min-height: 44px;
+  height: auto;
+  white-space: normal;
+}
+.command-review-loading,
+.command-reviewed > p {
+  font-size: 0.875rem;
+  color: #536983;
+  line-height: 1.6;
+  margin: 0 0 1rem;
+}
+.command-section-heading .command-review-hint {
+  margin-top: 0.5rem;
+}
+.command-reviewed {
+  border-top: 1px solid #d3dff0;
+  padding-top: 1rem;
+}
+.command-reviewed > summary {
+  color: #24436e;
+  font-size: 1rem;
+  cursor: pointer;
+  margin-bottom: 0.75rem;
+}
+.command-reviewed > summary span {
+  margin-left: 0.5rem;
+  font-variant-numeric: tabular-nums;
+}
 .command-action-top {
   display: flex;
   justify-content: space-between;
