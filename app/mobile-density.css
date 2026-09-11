@@ -1,0 +1,470 @@
+/* Mobile reading density. Keep controls, inputs and bottom safe-area spacing intact. */
+@media (max-width: 767px) {
+  .desk .content {
+    padding-top: 16px;
+    padding-inline: 14px;
+  }
+  .desk .page-heading {
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .desk .page-heading h1 {
+    font-size: 1.5rem;
+    line-height: 1.2;
+    margin-bottom: 6px;
+    letter-spacing: -0.035em;
+  }
+  .desk .page-heading p {
+    font-size: 0.875rem;
+    line-height: 1.45;
+  }
+  .desk .heading-actions {
+    gap: 8px;
+  }
+  .desk .panel,
+  .desk .insight-section {
+    padding: 14px;
+  }
+  .desk .section-head {
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .desk .section-head h2 {
+    font-size: 1.25rem;
+  }
+  .desk .section-head p {
+    margin-top: 5px;
+    font-size: 0.875rem;
+    line-height: 1.5;
+  }
+  .desk .stat-grid,
+  .desk .league-grid,
+  .desk .waiver-grid,
+  .desk .insights-workspace {
+    gap: 14px;
+  }
+  .desk .stat {
+    padding: 12px;
+  }
+  .desk .stat > b {
+    font-size: 1.5rem;
+  }
+  .desk .insight-metric {
+    padding: 12px;
+    gap: 7px;
+  }
+  .desk .insight-metric > b {
+    font-size: 1.625rem;
+  }
+  .desk .insight-section-head {
+    gap: 10px;
+  }
+
+  /* Plan: separate information with hierarchy rather than large empty bands. */
+  .desk .command-center {
+    gap: 14px;
+  }
+  .desk .command-layout,
+  .desk .command-leagues {
+    gap: 12px;
+  }
+  .desk .command-summary {
+    padding: 12px;
+    gap: 12px;
+  }
+  .desk .command-summary > div {
+    column-gap: 7px;
+    row-gap: 3px;
+  }
+  .desk .command-summary strong {
+    font-size: 1.5rem;
+  }
+  .desk .command-summary .command-next {
+    font-size: 0.9375rem;
+  }
+  .desk .command-summary span {
+    line-height: 1.4;
+  }
+  .desk .command-section-heading {
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .desk .command-section-heading h2 {
+    font-size: 1.25rem;
+    margin-bottom: 4px;
+  }
+  .desk .command-section-heading p {
+    line-height: 1.45;
+  }
+  .desk .command-section-heading .command-review-hint {
+    margin-top: 5px;
+  }
+  .desk .command-action {
+    padding: 14px;
+    margin-bottom: 12px;
+  }
+  .desk .command-action .command-action-league {
+    margin-top: 9px;
+  }
+  .desk .command-action h3 {
+    font-size: 1.0625rem;
+    line-height: 1.4;
+    margin-bottom: 6px;
+  }
+  .desk .command-action .command-action-detail {
+    font-size: 0.9375rem;
+    line-height: 1.5;
+  }
+  .desk .command-action-footer {
+    gap: 6px;
+    margin-top: 10px;
+  }
+  .desk .command-review-controls {
+    margin-top: 10px;
+    padding-top: 6px;
+    gap: 6px;
+  }
+  .desk .command-alternatives {
+    margin-top: 10px;
+    padding-top: 4px;
+  }
+  .desk .command-alternatives button {
+    padding-block: 10px;
+  }
+  .desk .command-clear {
+    padding: 20px 14px;
+  }
+  .desk .command-clear > svg {
+    margin-bottom: 10px;
+  }
+  .desk .command-clear p {
+    font-size: 0.9375rem;
+    line-height: 1.5;
+  }
+  .desk .command-card-header {
+    padding: 14px 14px 10px;
+  }
+  .desk .command-league h3 {
+    font-size: 1.125rem;
+    margin: 6px 0 10px;
+  }
+  .desk .command-card-team {
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .desk .command-card-team strong {
+    line-height: 1.4;
+  }
+  .desk .command-card-facts {
+    gap: 4px 10px;
+  }
+  .desk .command-card-facts dt {
+    font-size: 0.8125rem;
+  }
+  .desk .command-card-facts dd {
+    margin-top: 1px;
+    font-size: 0.875rem;
+  }
+  .desk .command-card-matchup {
+    margin-inline: 14px;
+    padding-top: 10px;
+  }
+  .desk .command-card-scoreboard {
+    margin-top: 6px;
+  }
+  .desk .command-card-scoreboard > div {
+    padding: 8px 10px;
+    gap: 10px;
+  }
+  .desk .command-card-scoreboard dd {
+    font-size: 1.5rem;
+  }
+  .desk .command-card-review {
+    padding: 10px 14px 12px;
+  }
+  .desk .command-card-next {
+    margin-top: 6px;
+    padding: 10px 12px;
+  }
+  .desk .command-card-next strong {
+    line-height: 1.4;
+  }
+  .desk .command-card-next small {
+    margin-bottom: 2px;
+  }
+  .desk .command-card-next-label {
+    margin-top: 5px;
+  }
+  .desk .command-card-idle {
+    font-size: 0.9375rem;
+    line-height: 1.5;
+  }
+  .desk .command-card-no-matchup {
+    margin-inline: 14px;
+    padding-top: 10px;
+  }
+  .desk .command-queue-link {
+    padding-top: 6px;
+  }
+  .desk .command-league-links {
+    padding: 4px 8px;
+  }
+
+  /* Lineup: retain player names and score sizes; tighten repeated roster rows. */
+  .desk .weekly-plan {
+    gap: 14px;
+    margin-bottom: 18px;
+  }
+  .desk .team-toolbar {
+    gap: 8px;
+  }
+  .desk .team-select > label {
+    margin-bottom: 5px;
+  }
+  .desk .plan-priority {
+    padding: 16px;
+    gap: 12px;
+  }
+  .desk .plan-priority h2 {
+    font-size: 1.375rem;
+    margin-bottom: 8px;
+  }
+  .desk .plan-priority p {
+    font-size: 0.9375rem;
+    line-height: 1.5;
+  }
+  .desk .plan-kicker {
+    margin-bottom: 8px;
+  }
+  .desk .plan-totals {
+    row-gap: 10px;
+  }
+  .desk .plan-totals span {
+    margin-bottom: 4px;
+  }
+  .desk .plan-totals .plan-gain {
+    padding-top: 8px;
+  }
+  .desk .plan-actions-grid {
+    gap: 14px;
+  }
+  .desk .starting-lineup {
+    gap: 8px;
+  }
+  .desk .starting-lineup li {
+    padding: 10px;
+    gap: 7px;
+  }
+  .desk .starting-lineup small,
+  .desk .starter-meta {
+    margin-top: 2px;
+    line-height: 1.4;
+  }
+  .desk .starter-decision {
+    margin-top: 4px;
+    line-height: 1.4;
+  }
+  .desk .starter-from {
+    margin-block: 3px;
+  }
+  .desk .move-list li,
+  .desk .priority-picks li {
+    padding-block: 12px;
+  }
+  .desk .plan-no-moves {
+    padding-block: 12px;
+    gap: 8px;
+  }
+  .desk .plan-no-moves p {
+    font-size: 0.9375rem;
+    line-height: 1.5;
+  }
+  .desk .plan-main-button {
+    margin-top: 10px;
+    padding-block: 8px;
+  }
+  .desk .plan-apply {
+    margin: 12px 0 8px;
+    padding-block: 8px;
+  }
+  .desk .plan-evidence {
+    margin-top: 12px;
+  }
+  .desk .lineup-data-review {
+    padding: 12px;
+    line-height: 1.5;
+  }
+  .desk .lineup-data-review ul {
+    gap: 8px;
+    margin-block: 8px;
+  }
+  .desk .lineup-data-review p {
+    font-size: 0.875rem;
+  }
+
+  /* Waivers: reduce padding at each nesting level without hiding reasoning. */
+  .desk .team-plan {
+    gap: 12px;
+  }
+  .desk .team-plan-hero,
+  .desk .team-section {
+    padding: 16px 14px;
+  }
+  .desk .team-plan-heading,
+  .desk .team-section-heading {
+    gap: 10px;
+  }
+  .desk .team-plan-heading h2 {
+    font-size: 1.375rem;
+  }
+  .desk .team-plan h3 {
+    font-size: 1.125rem;
+    margin: 8px 0 12px;
+  }
+  .desk .team-plan p {
+    font-size: 0.875rem;
+    line-height: 1.5;
+    margin-block: 6px;
+  }
+  .desk .team-plan-stats {
+    margin: 14px 0 12px;
+    padding-block: 12px;
+    gap: 8px;
+  }
+  .desk .team-plan-stats > div {
+    gap: 5px;
+  }
+  .desk .team-hero-footer {
+    gap: 10px;
+  }
+  .desk .team-section-heading {
+    margin-bottom: 12px;
+  }
+  .desk .team-section-heading .text-link {
+    margin-top: 0;
+  }
+  .desk .team-move-grid {
+    gap: 12px;
+  }
+  .desk .team-move {
+    padding: 12px;
+  }
+  .desk .team-move h3 {
+    font-size: 1.0625rem;
+    margin-bottom: 10px;
+  }
+  .desk .team-transaction {
+    padding: 10px;
+    margin-bottom: 10px;
+  }
+  .desk .team-transaction > div {
+    gap: 4px;
+  }
+  .desk .team-move-score {
+    padding-block: 10px;
+    margin-block: 10px;
+    gap: 5px;
+  }
+  .desk .team-keep-row {
+    margin-top: 8px;
+    padding-top: 6px;
+  }
+  .desk .team-keep-row button {
+    margin-top: 4px;
+  }
+  .desk .team-hold {
+    padding: 14px;
+    gap: 10px;
+  }
+  .desk .team-bench > div,
+  .desk .team-byes > div,
+  .desk .team-fallbacks > div {
+    padding-block: 12px;
+  }
+  .desk .team-method {
+    margin-top: 10px;
+    padding-top: 8px;
+  }
+
+  /* Matchup: preserve the main scoreboard and names, remove excess row height. */
+  .desk .matchup-workspace {
+    gap: 12px;
+  }
+  .desk .matchup-heading,
+  .desk .matchup-section-title {
+    gap: 10px;
+  }
+  .desk .matchup-heading h2 {
+    font-size: 1.375rem;
+    margin-top: 5px;
+  }
+  .desk .scoreboard-topline {
+    padding: 10px 14px;
+  }
+  .desk .scoreboard-team {
+    padding: 16px 14px;
+  }
+  .desk .scoreboard-team h3 {
+    margin: 6px auto 10px;
+  }
+  .desk .scoreboard-progress {
+    margin-top: 10px;
+  }
+  .desk .scoreboard-verdict {
+    padding: 8px 14px;
+  }
+  .desk .matchup-outlook,
+  .desk .matchup-breakdown {
+    padding: 16px 14px;
+  }
+  .desk .matchup-lineups {
+    padding: 16px 12px 4px;
+  }
+  .desk .outlook-totals {
+    margin: 12px 0 10px;
+    gap: 8px;
+  }
+  .desk .outlook-totals > div {
+    padding: 10px;
+  }
+  .desk .matchup-explainer {
+    line-height: 1.5;
+    margin-top: 8px;
+  }
+  .desk .matchup-action-strip {
+    padding: 14px;
+    gap: 10px;
+  }
+  .desk .matchup-detail-grid {
+    gap: 12px;
+  }
+  .desk .head-to-head-labels {
+    margin-top: 14px;
+    padding-block: 8px;
+  }
+  .desk .head-to-head-row {
+    padding-block: 12px;
+    gap: 8px;
+  }
+  .desk .matchup-player {
+    gap: 6px;
+  }
+  .desk .matchup-position-list,
+  .desk .matchup-breakdown .matchup-position-list {
+    margin-top: 16px;
+    gap: 14px;
+  }
+  .desk .matchup-waiver-prompt {
+    margin-top: 16px;
+    padding: 12px;
+  }
+  .desk .matchup-scoring-details {
+    margin-top: 14px;
+  }
+  .desk .matchup-status-note {
+    padding: 12px 14px;
+    gap: 8px;
+  }
+}
