@@ -101,10 +101,15 @@ const request = {
   requestId: '11111111-1111-4111-8111-111111111111',
 };
 const sender = { id: 'test-extension', frameId: 0, url: appOrigin + '/setup' };
-async function worker({ permission = true, missing = false } = {}) {
+async function worker({
+  permission = true,
+  missing = false,
+  tabClosed = false,
+} = {}) {
   let listener, onInstalled, onAction;
   const reads = [],
-    opened = [];
+    opened = [],
+    updated = [];
   const chrome = {
     runtime: {
       id: 'test-extension',
@@ -127,6 +132,10 @@ async function worker({ permission = true, missing = false } = {}) {
       },
     },
     tabs: {
+      update: async (id, options) => {
+        updated.push({ id, ...options });
+        if (tabClosed) throw new Error('Tab closed');
+      },
       create: async (options) => {
         opened.push(options);
       },
@@ -155,6 +164,7 @@ async function worker({ permission = true, missing = false } = {}) {
   return {
     reads,
     opened,
+    updated,
     onInstalled,
     onAction,
     listener,
@@ -262,15 +272,22 @@ void test('public connector has no localhost permission or persistent credential
   assert.ok(!JSON.stringify(manifest).includes('storage'));
 });
 
-void test('install and toolbar open setup without collecting cookies or opening tabs on updates', async () => {
+void test('toolbar reuses the clicked tab; installation never opens a page or collects cookies', async () => {
   const w = await worker();
-  w.onInstalled({ reason: 'update' });
+  assert.equal(w.onInstalled, undefined);
+  w.onAction({ id: 42 });
+  assert.deepEqual(w.updated, [{ id: 42, url: appOrigin + '/setup' }]);
   assert.equal(w.opened.length, 0);
-  w.onInstalled({ reason: 'install' });
+  assert.equal(w.reads.length, 0);
+});
+void test('missing or closed toolbar tabs do not trigger a replacement tab', async () => {
+  const w = await worker({ tabClosed: true });
   w.onAction();
-  assert.equal(w.opened.length, 2);
-  assert.ok(
-    w.opened.every((tab) => tab.url === appOrigin + '/setup' && tab.active),
-  );
+  w.onAction({ id: -1 });
+  assert.equal(w.updated.length, 0);
+  w.onAction({ id: 7 });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(w.updated.length, 1);
+  assert.equal(w.opened.length, 0);
   assert.equal(w.reads.length, 0);
 });

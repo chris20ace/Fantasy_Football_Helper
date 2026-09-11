@@ -356,12 +356,7 @@ export default function RosterConstruction({
               combinations checked for this team
             </p>
           </div>
-          <a
-            className="text-link"
-            href={league.url}
-            target="_blank"
-            rel="noreferrer"
-          >
+          <a className="text-link" href={league.url} rel="noreferrer">
             Open {provider}
             <ArrowUpRight size={16} />
           </a>

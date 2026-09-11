@@ -1,18 +1,18 @@
 # Sunday Desk ESPN Connector
 
-Version 0.2.0. Sign-in happens directly on ESPN. After you choose to import, this connector reads only espn_s2 and SWID cookies applicable to https://fantasy.espn.com/. It never reads a password, changes ESPN cookies or lineups, or writes credentials to extension storage.
+Version 0.2.1. Sign-in happens directly on ESPN. After you choose to import, this connector reads only espn_s2 and SWID cookies applicable to https://fantasy.espn.com/. It never reads a password, changes ESPN cookies or lineups, or writes credentials to extension storage.
 
 ## Installation
 
-The Chrome Web Store listing is being prepared. After approval, install from the official listing linked in Sunday Desk setup and confirm the browser prompt. Sunday Desk opens automatically; sign in if needed and choose Find my ESPN teams. If ESPN is not signed in, use the ESPN login link, then import again. Choose leagues and confirm encrypted storage.
+The Chrome Web Store listing is being prepared. After approval, install from the official listing linked in Sunday Desk setup and confirm the browser prompt. Return to Sunday Desk and reload the page, or click the connector toolbar icon to open setup in the current tab. Sign in if needed and choose Find my ESPN teams. If ESPN is not signed in, use the ESPN login link, then import again. Choose leagues and confirm encrypted storage.
 
 For manual development installation before store approval:
 
 1. Extract the ZIP to a permanent folder.
 2. Open chrome://extensions or edge://extensions, enable Developer mode, and choose Load unpacked. Select the folder containing manifest.json.
-3. Sunday Desk opens automatically. Find your ESPN teams, choose leagues, and confirm.
+3. Return to Sunday Desk and reload the page. Find your ESPN teams, choose leagues, and confirm.
 
-ESPN cookie access is requested during installation. There is no extra enable-access step. The toolbar icon opens Sunday Desk setup directly. Updates do not open extra tabs. Chrome or Edge on a computer is required for the connector; a connected dashboard works on phones.
+ESPN cookie access is requested during installation. There is no extra enable-access step. The toolbar icon opens Sunday Desk setup in the current tab. Installation and updates do not open pages automatically. Chrome or Edge on a computer is required for the connector; a connected dashboard works on phones.
 
 ## Privacy and removal
 

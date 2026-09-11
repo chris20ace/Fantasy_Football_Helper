@@ -17,9 +17,13 @@ type Mode = 'forgot' | 'reset' | 'change' | 'verify';
 export function PasswordForm({
   mode,
   emailReady = true,
+  initialEmail = '',
+  onBackToSignIn,
 }: {
   mode: Mode;
   emailReady?: boolean;
+  initialEmail?: string;
+  onBackToSignIn?: () => void;
 }) {
   const capturedLink = useRef(false);
   const [busy, setBusy] = useState(false),
@@ -131,15 +135,27 @@ export function PasswordForm({
       <div className="password-result">
         <CheckCircle2 size={30} />
         <output className="form-success">{success}</output>
-        <Link
-          prefetch={false}
-          className="password-primary-link"
-          href={mode === 'change' || mode === 'verify' ? '/account' : '/login'}
-        >
-          {mode === 'change' || mode === 'verify'
-            ? 'Back to Account settings'
-            : 'Back to sign in'}
-        </Link>
+        {mode === 'forgot' && onBackToSignIn ? (
+          <button
+            type="button"
+            className="password-primary-link"
+            onClick={onBackToSignIn}
+          >
+            Back to sign in
+          </button>
+        ) : (
+          <Link
+            prefetch={false}
+            className="password-primary-link"
+            href={
+              mode === 'change' || mode === 'verify' ? '/account' : '/login'
+            }
+          >
+            {mode === 'change' || mode === 'verify'
+              ? 'Back to Account settings'
+              : 'Back to sign in'}
+          </Link>
+        )}
         {mode === 'forgot' && (
           <button className="password-text-link" onClick={() => setSuccess('')}>
             Try another email
@@ -167,8 +183,9 @@ export function PasswordForm({
     );
   if (mode === 'forgot' && !emailReady)
     return (
-      <p className="form-error">
-        Password-reset emails are being set up. Please try again later.
+      <p className="form-error" role="status">
+        Email recovery is still being set up. If you’re signed in on another
+        device, you can change your password in Account settings there.
       </p>
     );
   return (
@@ -184,6 +201,7 @@ export function PasswordForm({
             required
             maxLength={254}
             placeholder="you@example.com"
+            defaultValue={initialEmail}
           />
         </label>
       )}

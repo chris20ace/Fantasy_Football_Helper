@@ -160,12 +160,7 @@ export default function WeeklyPlan({
             </SelectContent>
           </Select>
         </div>
-        <a
-          className="external-button"
-          href={active.url}
-          target="_blank"
-          rel="noreferrer"
-        >
+        <a className="external-button" href={active.url} rel="noreferrer">
           Open {active.platform === 'espn' ? 'ESPN' : 'Sleeper'}{' '}
           <ArrowUpRight size={16} />
         </a>
@@ -459,7 +454,6 @@ export default function WeeklyPlan({
                       <a
                         className="plan-apply"
                         href={active.url}
-                        target="_blank"
                         rel="noreferrer"
                       >
                         {analysis.enabled

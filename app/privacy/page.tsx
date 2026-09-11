@@ -48,8 +48,7 @@ export default function PrivacyPage() {
         <p>
           The extension does not store credentials, collect general browsing
           history, use analytics, or continuously monitor ESPN cookies.
-          Installation opens Sunday Desk setup; opening a page alone does not
-          import an account.
+          Opening Sunday Desk setup alone does not import an account.
         </p>
         <h2>Where data is processed</h2>
         <p>
@@ -93,7 +92,6 @@ export default function PrivacyPage() {
           Contact the publisher through{' '}
           <a
             href="https://github.com/chris20ace/Fantasy_Football_Helper/issues"
-            target="_blank"
             rel="noreferrer"
           >
             Sunday Desk support

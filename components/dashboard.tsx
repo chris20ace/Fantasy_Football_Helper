@@ -1059,12 +1059,7 @@ function LineupLab({
             ))}
           </SelectContent>
         </Select>
-        <a
-          className="external-button"
-          href={l.url}
-          target="_blank"
-          rel="noreferrer"
-        >
+        <a className="external-button" href={l.url} rel="noreferrer">
           Open {l.platform === 'espn' ? 'ESPN' : 'Sleeper'}{' '}
           <ExternalLink size={14} />
         </a>
@@ -1323,7 +1318,6 @@ function LineupLab({
                 </div>
                 <a
                   href={l.url}
-                  target="_blank"
                   rel="noreferrer"
                   className="external-button full"
                 >
@@ -1530,7 +1524,6 @@ function Connections({
             </div>
             <a
               href={l.url}
-              target="_blank"
               rel="noreferrer"
               aria-label={`Open ${l.name} in ${l.platform}`}
             >
@@ -1609,7 +1602,6 @@ function Connections({
         <a
           className="text-link"
           href="https://github.com/chris20ace/Fantasy_Football_Helper"
-          target="_blank"
           rel="noreferrer"
         >
           Project & setup guide <ArrowUpRight size={14} />

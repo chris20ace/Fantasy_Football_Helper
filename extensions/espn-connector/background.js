@@ -42,10 +42,10 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
   return true;
 });
 
-function openSetup() {
-  void chrome.tabs.create({ url: appOrigin + '/setup', active: true });
+function openSetup(tab) {
+  if (!Number.isInteger(tab?.id) || tab.id < 0) return;
+  void chrome.tabs.update(tab.id, { url: appOrigin + '/setup' }).catch(() => {
+    // The tab may have closed. Do not create a replacement window or tab.
+  });
 }
-chrome.runtime.onInstalled.addListener(({ reason }) => {
-  if (reason === 'install') openSetup();
-});
 chrome.action.onClicked.addListener(openSetup);

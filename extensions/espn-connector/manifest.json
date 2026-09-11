@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Sunday Desk ESPN Connector",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Import your ESPN Fantasy Football teams into your private Sunday Desk dashboard. Choose your leagues and connect in a few clicks.",
   "incognito": "not_allowed",
   "action": {

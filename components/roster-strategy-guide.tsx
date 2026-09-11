@@ -32,7 +32,6 @@ export function RosterStrategyGuide() {
                       key={n}
                       className="strategy-citation"
                       href={researchSources[n - 1].url}
-                      target="_blank"
                       rel="noreferrer"
                       aria-label={`Source ${n}: ${researchSources[n - 1].title}`}
                     >
@@ -51,7 +50,7 @@ export function RosterStrategyGuide() {
           {researchSources.map((s, i) => (
             <li id={`strategy-source-${i + 1}`} key={s.url}>
               {s.by}.{' '}
-              <a href={s.url} target="_blank" rel="noreferrer">
+              <a href={s.url} rel="noreferrer">
                 {s.title}
               </a>
               . {s.date}.

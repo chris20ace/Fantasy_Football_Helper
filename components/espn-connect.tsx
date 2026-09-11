@@ -141,7 +141,7 @@ export default function EspnConnect({
         cleanup();
         reject(
           new Error(
-            'Install the connector in desktop Chrome or Edge. It will open a fresh setup page automatically.',
+            'Install the connector in desktop Chrome or Edge, then return here and reload this page.',
           ),
         );
       }, 6000);
@@ -341,7 +341,6 @@ export default function EspnConnect({
                 <a
                   className="espn-signin-secondary"
                   href="https://www.espn.com/login/"
-                  target="_blank"
                   rel="noreferrer"
                 >
                   Need to sign in to ESPN? <ExternalLink size={13} />
@@ -350,14 +349,13 @@ export default function EspnConnect({
             ) : (
               <>
                 <p>
-                  Install once. Sunday Desk opens automatically, ready to find
-                  your teams. No cookie copying or league IDs.
+                  Install once, then return here and reload to find your teams.
+                  No cookie copying or league IDs.
                 </p>
                 {release.status === 'published' && release.storeUrl ? (
                   <a
                     className="connector-store-button"
                     href={release.storeUrl}
-                    target="_blank"
                     rel="noreferrer"
                   >
                     Install ESPN Connector <ExternalLink size={16} />
@@ -434,8 +432,8 @@ export default function EspnConnect({
                   folder containing <code>manifest.json</code>.
                 </li>
                 <li>
-                  Sunday Desk opens automatically. Sign in if needed, then
-                  choose <strong>Find my ESPN teams</strong>.
+                  Return to Sunday Desk and reload this page. Sign in if needed,
+                  then choose <strong>Find my ESPN teams</strong>.
                 </li>
               </ol>
               <p>
@@ -517,7 +515,7 @@ export default function EspnConnect({
           </details>
           <p className="espn-private">
             <ShieldCheck size={15} /> Your ESPN password stays with ESPN.{' '}
-            <a href="/privacy" target="_blank" rel="noreferrer">
+            <a href="/privacy" rel="noreferrer">
               Privacy policy
             </a>
           </p>
