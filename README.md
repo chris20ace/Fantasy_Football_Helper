@@ -8,7 +8,7 @@ A fantasy football workspace where each person signs in, connects their Sleeper 
 
 ## Accounts and deployment
 
-The production app uses Better Auth for email/password accounts and Supabase PostgreSQL for sessions, connections, notes, and cache storage. Users sign up at /login and connect accounts at /setup. Sleeper uses the public read API by username; private ESPN leagues use user-supplied session cookies. ESPN credentials are encrypted with AES-256-GCM and bound to the user ID. No provider lineups are changed by this app.
+The production app uses Better Auth for email/password accounts and Supabase PostgreSQL for sessions, connections, notes, and cache storage. Users sign up at /login and connect accounts at /setup. Sleeper uses the public read API by username; private ESPN leagues can be imported from an existing browser session with the optional desktop connector, or connected manually. ESPN credentials are encrypted with AES-256-GCM and bound to the user ID. No provider lineups are changed by this app.
 
 Vercel builds GitHub main using pnpm build:vercel and Nitro's Build Output API. Framework Preset is Other and Output Directory is unset. Use the canonical production address above for account sign-in. Keep **Standard Deployment Protection** enabled on preview and old deployment URLs; legacy owner-only deployments still depend on it. Never disable all project protection to publish the new login page. If Skew Protection is enabled, set its boundary to the first multi-user deployment.
 
@@ -26,6 +26,18 @@ For local account development, provide those server values in ignored .env.auth.
 Email verification and password-reset emails require an email provider and are not enabled. Email addresses currently identify login accounts; an email match never grants access to an existing workspace. The previous owner's connections can be moved only through a private, expiring, single-use restore invitation. New users always start empty.
 
 The existing Sites deployment is a separate legacy snapshot. These new account routes target Vercel; do not redeploy them to Sites without a compatible database/auth adapter.
+
+## ESPN browser connector
+
+The setup page opens ESPN in its own tab, imports the user's existing session through a permissioned desktop extension, discovers their NFL teams, and asks which leagues to connect. Discovery validates each league against ESPN and returns only sanitized league details plus an encrypted, user-bound preview ticket. Confirmation checks ticket expiry (10 minutes), selected league membership and workspace revision before persisting encrypted credentials. Cancelling discovery does not replace a working connection.
+
+This is not an embedded ESPN OAuth login. Cross-origin iframe isolation prevents a normal website from reading ESPN's login or cookies. No ESPN password is requested or captured.
+
+The developer-preview extension source is in extensions/espn-connector, with a reproducible download in public/downloads. Run pnpm connector:package after changing the extension. Normal public distribution requires a browser-store release; the ZIP requires desktop Chrome/Edge Developer mode and Load unpacked. Phone browsers cannot use this desktop connector; users can connect once on a computer and access their dashboard on mobile afterward. The public connector allows only the canonical HTTPS origin, exact /setup path, top-level frame and its own extension ID. Optional ESPN access is requested through its popup. It has no persistent storage or analytics.
+
+For isolated local development, run node scripts/package-espn-connector.mjs --local and load work/espn-connector-local. That build permits localhost and must never be distributed publicly.
+
+ESPN discovery uses the fan-profile endpoint employed by [ESPN's web client](https://cdn1.espn.net/kona/5a90d30cd38d-1.490/_next/static/commons/main-82d208d52efd2b467c49.js): GET https://fan.api.espn.com/apis/v2/fans/{encodedSWID}. The parser reads preferences[].metaData.entry for preference types 9/10, football gameId 1 and the current season. It extracts groups[0].groupId, then independently verifies team ownership in each league. This undocumented compatibility integration may change; the advanced manual form supports league IDs as a fallback.
 
 ## What you can do
 

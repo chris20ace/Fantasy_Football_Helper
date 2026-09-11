@@ -1,4 +1,9 @@
-export type ConnectedLeague = { id: string; name: string; season: number };
+export type ConnectedLeague = {
+  id: string;
+  name: string;
+  season: number;
+  teamName?: string;
+};
 export type ProviderConnection = {
   provider: 'sleeper' | 'espn';
   accountId: string;

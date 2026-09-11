@@ -1,0 +1,25 @@
+{
+  "manifest_version": 3,
+  "name": "Sunday Desk · ESPN Connector",
+  "version": "0.1.0",
+  "description": "Connect your own ESPN Fantasy leagues to Sunday Desk after signing in directly on ESPN.",
+  "incognito": "not_allowed",
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Sunday Desk ESPN Connector"
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "optional_permissions": ["cookies"],
+  "optional_host_permissions": ["https://*.espn.com/*"],
+  "content_scripts": [
+    {
+      "matches": ["https://fantasy-football-helper-orcin.vercel.app/setup*"],
+      "js": ["bridge.js"],
+      "all_frames": false,
+      "run_at": "document_idle"
+    }
+  ]
+}

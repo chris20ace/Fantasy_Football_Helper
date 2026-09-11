@@ -16,7 +16,8 @@
     "typecheck": "tsc --noEmit",
     "db:local": "wrangler d1 migrations apply site-creator-d1 --local --config wrangler.local.json",
     "build:vercel": "vite build --config vite.vercel.config.ts",
-    "test:accounts": "node --experimental-strip-types scripts/test-accounts.mjs"
+    "test:accounts": "node --experimental-strip-types scripts/test-accounts.mjs",
+    "connector:package": "node scripts/package-espn-connector.mjs"
   },
   "dependencies": {
     "@base-ui/react": "1.7.0",

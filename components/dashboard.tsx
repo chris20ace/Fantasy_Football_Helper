@@ -1,5 +1,5 @@
 'use client';
-import Link from 'next/link';
+import SetupLink from './setup-link';
 import SignOut from './sign-out';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -428,9 +428,7 @@ export default function FantasyDashboard({
                   ? 'Connected'
                   : 'Workspace'}
             </span>
-            <Link prefetch={false} href="/setup" className="account-link">
-              Manage accounts
-            </Link>
+            <SetupLink className="account-link">Manage accounts</SetupLink>
             <span className="avatar" title={displayName}>
               {displayName
                 .split(/\s+/)
@@ -1675,9 +1673,9 @@ function Connections({
           <div>
             <div className="eyebrow">LIVE DATA, CLEAR STATUS</div>
             <h2>Your league connections</h2>
-            <Link prefetch={false} className="account-link" href="/setup">
+            <SetupLink className="account-link">
               Add or manage accounts →
-            </Link>
+            </SetupLink>
           </div>
           <Button variant="outline" onClick={onRefresh} disabled={loading}>
             <RefreshCw size={14} />
@@ -1771,11 +1769,8 @@ function Connections({
         </p>
         <p>
           <strong>Private access:</strong> ESPN sessions stay on the server.
-          They can expire;{' '}
-          <Link prefetch={false} href="/setup">
-            reconnect your account
-          </Link>{' '}
-          to update the saved session.
+          They can expire; <SetupLink>reconnect your account</SetupLink> to
+          update the saved session.
         </p>
         <p className="tiny">
           The dashboard recommends combinations from players already on your

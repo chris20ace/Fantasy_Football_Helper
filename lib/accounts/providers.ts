@@ -1,4 +1,5 @@
 import { InputError } from './errors.ts';
+import { espnLeagueIds } from './espn-discovery.ts';
 import type { ProviderConnection } from './types.ts';
 type Json = Record<string, unknown>;
 const normalize = (v: string) => v.replace(/[{}]/g, '').toLowerCase();
@@ -9,11 +10,12 @@ async function read(url: string, cookie?: string): Promise<unknown> {
       ...(cookie ? { Cookie: cookie } : {}),
     },
     signal: AbortSignal.timeout(18000),
+    redirect: 'error',
   });
   if (!r.ok)
     throw new InputError(
       r.status === 401 || r.status === 403
-        ? 'ESPN could not verify this session. Sign in to ESPN and copy fresh cookies.'
+        ? 'ESPN could not verify this session. Sign in to ESPN and import your account again.'
         : 'The fantasy provider is temporarily unavailable. Try again shortly.',
     );
   if (!r.headers.get('content-type')?.includes('json'))
@@ -80,41 +82,70 @@ export async function connectProvider(body: Json): Promise<ProviderConnection> {
       )
     )
       throw new InputError('Paste the SWID value, including the dashes.');
-    const ids = Array.isArray(body.leagueIds)
+    let ids = Array.isArray(body.leagueIds)
       ? [...new Set(body.leagueIds.map(String))]
       : [];
+    if (!ids.length) {
+      ids = espnLeagueIds(
+        await read(
+          'https://fan.api.espn.com/apis/v2/fans/' +
+            encodeURIComponent(swid) +
+            '?context=fantasy',
+          'espn_s2=' + s2 + '; SWID=' + swid,
+        ),
+        season,
+      );
+    }
     if (
       !ids.length ||
       ids.length > 20 ||
       ids.some((id) => !/^\d{1,20}$/.test(id))
     )
       throw new InputError('Enter 1–20 league IDs, separated by commas.');
-    const leagues = [];
-    for (const id of ids) {
-      const league = (await read(
-        'https://lm-api-reads.fantasy.espn.com/apis/v3/games/ffl/seasons/' +
-          season +
-          '/segments/0/leagues/' +
-          id +
-          '?view=mSettings&view=mTeam',
-        'espn_s2=' + s2 + '; SWID=' + swid,
-      )) as { settings?: { name?: string }; teams?: { owners?: string[] }[] };
-      if (
-        !league.teams?.some((t) =>
-          t.owners?.some((o) => normalize(o) === normalize(swid)),
-        )
-      )
-        throw new InputError(
-          'Your ESPN account is not a member of league ' +
+    const leagues = await Promise.all(
+      ids.map(async (id) => {
+        const league = (await read(
+          'https://lm-api-reads.fantasy.espn.com/apis/v3/games/ffl/seasons/' +
+            season +
+            '/segments/0/leagues/' +
             id +
-            '. Check the league ID and SWID.',
+            '?view=mSettings&view=mTeam',
+          'espn_s2=' + s2 + '; SWID=' + swid,
+        )) as {
+          settings?: { name?: string };
+          teams?: {
+            owners?: string[];
+            name?: string;
+            location?: string;
+            nickname?: string;
+            abbrev?: string;
+          }[];
+        };
+        if (
+          !league.teams?.some((t) =>
+            t.owners?.some((o) => normalize(o) === normalize(swid)),
+          )
+        )
+          throw new InputError(
+            'Your ESPN account is not a member of league ' +
+              id +
+              '. Check the league ID and SWID.',
+          );
+        const myTeam = league.teams?.find((t) =>
+          t.owners?.some((o) => normalize(o) === normalize(swid)),
         );
-      leagues.push({
-        id,
-        name: league.settings?.name ?? 'ESPN league ' + id,
-        season,
-      });
-    }
+        return {
+          id,
+          name: league.settings?.name ?? 'ESPN league ' + id,
+          season,
+          teamName:
+            myTeam?.name ||
+            [myTeam?.location, myTeam?.nickname].filter(Boolean).join(' ') ||
+            myTeam?.abbrev ||
+            undefined,
+        };
+      }),
+    );
     return {
       provider: 'espn',
       accountId: normalize(swid),

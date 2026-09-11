@@ -4,7 +4,6 @@ import { useState } from 'react';
 import {
   ArrowRight,
   Check,
-  ChevronDown,
   Link2,
   LockKeyhole,
   ShieldCheck,
@@ -12,8 +11,8 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import SignOut from './sign-out';
+import EspnConnect from './espn-connect';
 import type { PublicConnection } from '@/lib/accounts/types';
 export default function ConnectionSetup({
   name,
@@ -157,7 +156,7 @@ export default function ConnectionSetup({
                 <h2>
                   {provider === 'sleeper'
                     ? 'Link by username.'
-                    : 'Connect private leagues.'}
+                    : 'Bring your ESPN teams.'}
                 </h2>
                 <p className="muted">
                   {provider === 'sleeper'
@@ -180,28 +179,31 @@ export default function ConnectionSetup({
                     </ul>
                   </div>
                 )}
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    const form = e.currentTarget,
-                      values = new FormData(form);
-                    void update(
-                      provider === 'sleeper'
-                        ? { provider, username: values.get('username') }
-                        : {
-                            provider,
-                            s2: values.get('s2'),
-                            swid: values.get('swid'),
-                            leagueIds: (values.get('leagueIds') as string)
-                              .split(/[\s,]+/)
-                              .filter(Boolean),
-                          },
-                      provider,
-                      form,
-                    );
-                  }}
-                >
-                  {provider === 'sleeper' ? (
+                {provider === 'espn' ? (
+                  <EspnConnect
+                    disabled={!!busy}
+                    onBusy={(value) => setBusy(value ? 'espn' : '')}
+                    onConnected={(value) => {
+                      setConnections(value);
+                      setError('');
+                      setSuccess(
+                        'Your ESPN leagues are connected. Open your dashboard when you are ready.',
+                      );
+                    }}
+                  />
+                ) : (
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      const form = e.currentTarget,
+                        values = new FormData(form);
+                      void update(
+                        { provider, username: values.get('username') },
+                        provider,
+                        form,
+                      );
+                    }}
+                  >
                     <label htmlFor="username">
                       Sleeper username
                       <Input
@@ -211,105 +213,23 @@ export default function ConnectionSetup({
                         autoComplete="off"
                         placeholder="Your username"
                         maxLength={40}
-                        defaultValue={
-                          provider === 'sleeper' ? connection?.label : undefined
-                        }
+                        defaultValue={connection?.label}
                       />
                     </label>
-                  ) : (
-                    <>
-                      <details className="connection-help">
-                        <summary>
-                          Where do I find these values?{' '}
-                          <ChevronDown size={15} />
-                        </summary>
-                        <ol>
-                          <li>
-                            Sign in to{' '}
-                            <a
-                              href="https://fantasy.espn.com/football/"
-                              target="_blank"
-                              rel="noreferrer"
-                            >
-                              ESPN Fantasy
-                            </a>{' '}
-                            in Chrome or Edge on a computer.
-                          </li>
-                          <li>
-                            Open Developer Tools (F12 or right-click → Inspect),
-                            then Application → Cookies → the ESPN site.
-                          </li>
-                          <li>
-                            Copy the values named <strong>espn_s2</strong> and{' '}
-                            <strong>SWID</strong> into the private fields below.
-                          </li>
-                          <li>
-                            Find each league ID in League Settings or the league
-                            page address after leagueId=.
-                          </li>
-                        </ol>
-                        <p>
-                          These cookies grant account access. Only paste them
-                          into your private connection form. They can expire;
-                          reconnect here when needed. A computer is easiest for
-                          this step.
-                        </p>
-                      </details>
-                      <label htmlFor="leagueIds">
-                        League IDs
-                        <Input
-                          id="leagueIds"
-                          name="leagueIds"
-                          required
-                          placeholder="123456, 789012"
-                          maxLength={440}
-                          defaultValue={connection?.leagues
-                            .map((l) => l.id)
-                            .join(', ')}
-                        />
-                      </label>
-                      <label htmlFor="s2">
-                        espn_s2 session value
-                        <Textarea
-                          id="s2"
-                          name="s2"
-                          required
-                          autoComplete="off"
-                          spellCheck={false}
-                          maxLength={6000}
-                          rows={3}
-                          className="secret-field"
-                          placeholder="Paste the full cookie value"
-                        />
-                      </label>
-                      <label htmlFor="swid">
-                        SWID
-                        <Input
-                          id="swid"
-                          name="swid"
-                          required
-                          autoComplete="off"
-                          spellCheck={false}
-                          maxLength={38}
-                          placeholder="{xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx}"
-                        />
-                      </label>
-                    </>
-                  )}
-                  <Button
-                    type="submit"
-                    disabled={!!busy}
-                    className="connect-submit"
-                  >
-                    {busy === provider
-                      ? 'Checking your leagues…'
-                      : connection
-                        ? 'Reconnect & refresh leagues'
-                        : 'Connect ' +
-                          (provider === 'sleeper' ? 'Sleeper' : 'ESPN')}
-                    <ArrowRight size={16} />
-                  </Button>
-                </form>
+                    <Button
+                      type="submit"
+                      disabled={!!busy}
+                      className="connect-submit"
+                    >
+                      {busy === provider
+                        ? 'Checking your leagues…'
+                        : connection
+                          ? 'Reconnect & refresh leagues'
+                          : 'Connect Sleeper'}
+                      <ArrowRight size={16} />
+                    </Button>
+                  </form>
+                )}
                 {connection && (
                   <div className="disconnect-row">
                     {confirm === provider ? (
