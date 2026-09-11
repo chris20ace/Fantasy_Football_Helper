@@ -1,4 +1,5 @@
 'use client';
+import Link from 'next/link';
 import SetupLink from './setup-link';
 import SignOut from './sign-out';
 import Insights from './insights';
@@ -175,6 +176,9 @@ function Rail({
           ))}
         </div>
         <div className="rail-account-actions">
+          <Link prefetch={false} href="/account" className="account-link">
+            Account settings
+          </Link>
           <SetupLink className="account-link">Manage leagues</SetupLink>
           <SignOut />
         </div>
@@ -494,14 +498,20 @@ export default function FantasyDashboard({
                   : 'Workspace'}
             </span>
             <SetupLink className="account-link">Manage leagues</SetupLink>
-            <span className="avatar" title={displayName}>
+            <Link
+              prefetch={false}
+              href="/account"
+              className="avatar"
+              title="Account settings"
+              aria-label="Open Account settings"
+            >
               {displayName
                 .split(/\s+/)
                 .slice(0, 2)
                 .map((n) => n[0])
                 .join('')
                 .toUpperCase()}
-            </span>
+            </Link>
             <SignOut />
           </div>
         </header>
@@ -1470,7 +1480,20 @@ function Connections({
 }) {
   return (
     <div className="connections-layout">
-      <section className="panel">
+      <section className="panel password-account-shortcut">
+        <div>
+          <h2>Password & recovery</h2>
+          <p>Change your Sunday Desk password or verify your recovery email.</p>
+        </div>
+        <Link
+          prefetch={false}
+          href="/account"
+          className="password-primary-link"
+        >
+          Account settings
+        </Link>
+      </section>
+      <section className="panel league-connections-panel">
         <div className="section-head">
           <div>
             <div className="eyebrow">LIVE DATA, CLEAR STATUS</div>

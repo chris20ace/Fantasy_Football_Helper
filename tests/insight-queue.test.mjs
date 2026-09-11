@@ -140,30 +140,45 @@ void test('an active unauthorized response cancels the whole scoped scan once', 
   assert.equal(h.unauthorized, 1);
   h.queue.dispose();
 });
-void test('timeouts release capacity for remaining leagues instead of leaving the queue stuck', async () => {
-  let entries = {},
-    calls = 0;
-  const queue = new InsightQueue({
-    concurrency: 1,
-    timeoutMs: 15,
-    onChange: (e) => (entries = e),
-    onUnauthorized: () => assert.fail(),
-    fetch: (_url, { signal }) => {
-      calls++;
-      return new Promise((_resolve, reject) =>
-        signal.addEventListener('abort', () => reject(new Error('aborted')), {
-          once: true,
-        }),
-      );
-    },
-  });
-  try {
-    queue.replace([target(1), target(2)]);
-    await new Promise((resolve) => setTimeout(resolve, 65));
-    assert.equal(calls, 2);
-    assert.equal(entries['sleeper:1'].phase, 'error');
-    assert.equal(entries['sleeper:2'].phase, 'error');
-  } finally {
-    queue.dispose();
-  }
-});
+void test(
+  'timeouts release capacity for remaining leagues instead of leaving the queue stuck',
+  { timeout: 2000 },
+  async () => {
+    let entries = {},
+      calls = 0;
+    let finish;
+    const completed = new Promise((resolve) => {
+      finish = resolve;
+    });
+    const queue = new InsightQueue({
+      concurrency: 1,
+      timeoutMs: 15,
+      onChange: (e) => {
+        entries = e;
+        if (
+          e['sleeper:1']?.phase === 'error' &&
+          e['sleeper:2']?.phase === 'error'
+        )
+          finish();
+      },
+      onUnauthorized: () => assert.fail(),
+      fetch: (_url, { signal }) => {
+        calls++;
+        return new Promise((_resolve, reject) =>
+          signal.addEventListener('abort', () => reject(new Error('aborted')), {
+            once: true,
+          }),
+        );
+      },
+    });
+    try {
+      queue.replace([target(1), target(2)]);
+      await completed;
+      assert.equal(calls, 2);
+      assert.equal(entries['sleeper:1'].phase, 'error');
+      assert.equal(entries['sleeper:2'].phase, 'error');
+    } finally {
+      queue.dispose();
+    }
+  },
+);

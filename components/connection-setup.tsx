@@ -85,6 +85,9 @@ export default function ConnectionSetup({
         </Link>
         <div>
           <span>{name}</span>
+          <Link prefetch={false} href="/account" className="account-link">
+            Account settings
+          </Link>
           <SignOut />
         </div>
       </header>

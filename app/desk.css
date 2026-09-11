@@ -1456,7 +1456,7 @@ h3 {
   grid-template-columns: 1.3fr 1fr;
   gap: 20px;
 }
-.connections-layout > section:first-child {
+.connections-layout > .league-connections-panel {
   grid-row: span 2;
 }
 .connection-row {
@@ -1593,7 +1593,7 @@ h3 {
   .connections-layout {
     grid-template-columns: 1fr;
   }
-  .connections-layout > section:first-child {
+  .connections-layout > .league-connections-panel {
     grid-row: auto;
   }
   .brand {

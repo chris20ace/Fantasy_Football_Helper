@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import './desk.css';
 import './accounts.css';
+import './passwords.css';
 import './responsive.css';
 import './team-management.css';
 import './matchup.css';

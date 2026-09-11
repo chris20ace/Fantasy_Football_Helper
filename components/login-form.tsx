@@ -147,6 +147,15 @@ export default function LoginForm() {
               </div>
               {signup && <small>Use at least 12 characters.</small>}
             </label>
+            {!signup && (
+              <Link
+                prefetch={false}
+                href="/forgot-password"
+                className="forgot-password-link"
+              >
+                Forgot password?
+              </Link>
+            )}
             {error && (
               <p className="form-error" role="alert">
                 {error}

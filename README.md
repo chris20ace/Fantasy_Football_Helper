@@ -40,12 +40,18 @@ Server environment:
 - BETTER_AUTH_URL: the exact canonical origin, without a trailing slash.
 - BETTER_AUTH_SECRET: a random secret of at least 32 bytes.
 - CONNECTION_ENCRYPTION_KEY: a base64-encoded 32-byte key. Retain it to keep saved connections decryptable.
+- RESEND_API_KEY: a sending-only Resend key for the verified email domain.
+- AUTH_EMAIL_FROM: the sender, such as `Sunday Desk <account@example.com>`, using that verified domain.
 
 Migrations use DATABASE_ADMIN_URL and DATABASE_RUNTIME_PASSWORD only on the administrator's machine. Run node --env-file=.env.auth.local --experimental-strip-types scripts/migrate-accounts.mjs to create the isolated sunday_desk schema, auth tables and restricted role. Administrator credentials must never be deployed to Vercel. The server verifies database TLS using the public Supabase root CA and standard system roots. The schema is not exposed to Supabase anonymous/authenticated API roles.
 
 For local account development, provide those server values in ignored .env.auth.local with BETTER_AUTH_URL=http://localhost:3000, then run node --env-file=.env.auth.local node_modules/vite/bin/vite.js --config vite.vercel.config.ts --host localhost --port 3000.
 
-Email verification and password-reset emails require an email provider and are not enabled. Email addresses currently identify login accounts; an email match never grants access to an existing workspace. The previous owner's connections can be moved only through a private, expiring, single-use restore invitation. New users always start empty.
+Account settings at `/account` let signed-in users change their password after providing the current password. The change replaces the current session and signs out other devices. The login page links to `/forgot-password`; reset links expire after 30 minutes, are single-use, and revoke every existing session when completed. Password reset does not alter league connections or notes.
+
+Recovery email is explicitly enrolled from Account settings with a signed-in session and the current password, then confirmed through an emailed link. Existing unverified signup addresses are never automatically trusted for recovery. Public verification-email issuance is disabled; the guarded enrollment route derives the recipient from the session and has a persistent attempt limit. Unknown and unverified email addresses get the same reset-request response. New accounts also enroll recovery from Account settings. The previous owner's connections can be moved only through a private, expiring, single-use restore invitation. New users always start empty.
+
+Account mail uses [Resend's email API](https://resend.com/docs/api-reference/emails/send-email). Set server-only `RESEND_API_KEY` (sending-only access scoped to the verified domain) and `AUTH_EMAIL_FROM` (a sender on that domain). No client bundle receives these values. The email links hold their tokens in URL fragments, which the password page captures in memory and removes from the address bar. Production delivery uses [Vercel waitUntil](https://vercel.com/docs/functions/functions-api-reference/vercel-functions-package) so the public response does not wait on the email provider. Failed deliveries are logged without email contents or credentials. Opening an email alone does not change a password.
 
 The existing Sites deployment is a separate legacy snapshot. These new account routes target Vercel; do not redeploy them to Sites without a compatible database/auth adapter.
 
@@ -113,6 +119,8 @@ pnpm build:vercel
 Tests cover assignment traps, repeated FLEX eligibility, game locks, missing/negative projections, IR/taxi/bye exclusions, stale/future/pre-draft behavior, cross-source exposure, and custom scoring. Command-center tests cover complete action grouping, league-specific destinations, shared Keep choices and valid-zero/played-score handling. Queue tests cover bounded concurrency, retry, timeouts, account/week isolation and obsolete-response cancellation. Lint applies to application code; generated shadcn components and the generated mobile hook are left intact.
 
 Run node --env-file=.env.auth.local --experimental-strip-types scripts/test-accounts.mjs for database integration checks. It creates synthetic accounts, tests isolation and session revocation, and deletes only those test accounts afterward.
+
+Run `node --env-file=.env.auth.local --experimental-strip-types scripts/test-passwords.mjs` for recovery and password-change integration checks. It captures email at the network boundary, uses synthetic accounts, verifies current-password proof, expiry, token replay, session revocation, rate limits and account isolation, and removes its test records. It sends no actual emails.
 
 Account schema migrations are in db/postgres. Existing Drizzle/D1 files belong to the legacy Sites snapshot.
 
