@@ -40,8 +40,9 @@ Server environment:
 - BETTER_AUTH_URL: the exact canonical origin, without a trailing slash.
 - BETTER_AUTH_SECRET: a random secret of at least 32 bytes.
 - CONNECTION_ENCRYPTION_KEY: a base64-encoded 32-byte key. Retain it to keep saved connections decryptable.
-- RESEND_API_KEY: a sending-only Resend key for the verified email domain.
-- AUTH_EMAIL_FROM: the sender, such as `Sunday Desk <account@example.com>`, using that verified domain.
+- AUTH_EMAIL_PROVIDER: `gmail` for the selected Gmail sender, or `resend` for a custom-domain sender.
+- GMAIL_ADDRESS / GMAIL_APP_PASSWORD: the Gmail sender and its separate 16-character Google app password, used only when Gmail is selected. Keep the app password server-only; never use the Google account password.
+- RESEND_API_KEY / AUTH_EMAIL_FROM: optional alternative for Resend, using a sending-only key and a sender on its verified domain.
 
 Migrations use DATABASE_ADMIN_URL and DATABASE_RUNTIME_PASSWORD only on the administrator's machine. Run node --env-file=.env.auth.local --experimental-strip-types scripts/migrate-accounts.mjs to create the isolated sunday_desk schema, auth tables and restricted role. Administrator credentials must never be deployed to Vercel. The server verifies database TLS using the public Supabase root CA and standard system roots. The schema is not exposed to Supabase anonymous/authenticated API roles.
 
@@ -51,7 +52,9 @@ Account settings at `/account` let signed-in users change their password after p
 
 Recovery email is explicitly enrolled from Account settings with a signed-in session and the current password, then confirmed through an emailed link. Existing unverified signup addresses are never automatically trusted for recovery. Public verification-email issuance is disabled; the guarded enrollment route derives the recipient from the session and has a persistent attempt limit. Unknown and unverified email addresses get the same reset-request response. New accounts also enroll recovery from Account settings. The previous owner's connections can be moved only through a private, expiring, single-use restore invitation. New users always start empty.
 
-Account mail uses [Resend's email API](https://resend.com/docs/api-reference/emails/send-email). Set server-only `RESEND_API_KEY` (sending-only access scoped to the verified domain) and `AUTH_EMAIL_FROM` (a sender on that domain). No client bundle receives these values. The email links hold their tokens in URL fragments, which the password page captures in memory and removes from the address bar. Production delivery uses [Vercel waitUntil](https://vercel.com/docs/functions/functions-api-reference/vercel-functions-package) so the public response does not wait on the email provider. Failed deliveries are logged without email contents or credentials. Opening an email alone does not change a password.
+Account mail supports Gmail with the sender name Sunday Desk. Select `AUTH_EMAIL_PROVIDER=gmail`, set `GMAIL_ADDRESS`, and save a [Google app password](https://support.google.com/mail/answer/185833?hl=en) as the server-only `GMAIL_APP_PASSWORD`. Gmail requires two-step verification and is subject to Google's sending limits. The connection uses certificate-verified TLS to `smtp.gmail.com:465`; an incomplete Gmail setup never falls back to another sender. [Resend's email API](https://resend.com/docs/api-reference/emails/send-email) remains an optional alternative when explicitly selected and configured with a verified custom domain. No client bundle receives mail credentials.
+
+Email links hold their tokens in URL fragments, which the password page captures in memory and removes from the address bar. Production delivery uses [Vercel waitUntil](https://vercel.com/docs/functions/functions-api-reference/vercel-functions-package) so the public response does not wait on the email provider. Failed deliveries are logged without email contents or credentials. Opening an email alone does not change a password.
 
 The existing Sites deployment is a separate legacy snapshot. These new account routes target Vercel; do not redeploy them to Sites without a compatible database/auth adapter.
 

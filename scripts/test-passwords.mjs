@@ -9,6 +9,7 @@ if (!process.env.DATABASE_URL || !process.env.BETTER_AUTH_URL)
   throw new Error('Use a configured test database.');
 // Capture mail at the network boundary. No actual emails or live API key are used.
 process.env.RESEND_API_KEY = 'password-test-key';
+process.env.AUTH_EMAIL_PROVIDER = 'resend';
 process.env.AUTH_EMAIL_FROM = 'Sunday Desk <no-reply@example.test>';
 const originalFetch = globalThis.fetch,
   deliveries = [];
