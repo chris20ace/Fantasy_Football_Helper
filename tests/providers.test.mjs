@@ -502,3 +502,28 @@ void test('Sleeper duplicated or truncated starter lists remain unverified', () 
   s.matches[0].starters = ['11', '11'];
   assert.equal(fromS(s).stale, true);
 });
+
+void test('ESPN preserves transaction and roster locks separately and maps positive primary-position limits', () => {
+  const raw = espn();
+  raw.teams[0].isTransactionLocked = true;
+  raw.settings.rosterSettings.positionLimits = {
+    1: 3,
+    2: 8,
+    16: 2,
+    23: 99,
+    3: -1,
+  };
+  raw.settings.rosterSettings.isUsingUndroppableList = true;
+  raw.settings.rosterSettings.rosterLocktimeType = 'INDIVIDUAL_GAME';
+  raw.teams[0].roster.entries[0].playerPoolEntry.rosterLocked = true;
+  raw.teams[0].roster.entries[0].pendingTransactionIds = ['pending'];
+  const l = fromE(raw);
+  assert.equal(l.transactionLocked, true);
+  assert.equal(l.players[0].locked, false);
+  assert.equal(l.players[0].dropLocked, true);
+  assert.equal(l.players[0].pendingTransaction, true);
+  assert.deepEqual(l.rosterRules.positionLimits, { QB: 3, RB: 8, DEF: 2 });
+  assert.equal(l.rosterRules.usesUndroppableList, true);
+  assert.equal(fromE(espn()).transactionLocked, null);
+  assert.equal(fromE(espn()).players[0].dropLocked, null);
+});

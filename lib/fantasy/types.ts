@@ -18,6 +18,8 @@ export type Player = {
   gameStatus: GameStatus;
   opponent: string;
   locked: boolean | null;
+  dropLocked?: boolean | null;
+  pendingTransaction?: boolean;
   reserve: boolean;
   taxi: boolean;
 };
@@ -40,6 +42,9 @@ export type RosterRules = {
   bestBall: boolean | null;
   receptionPoints: number | null;
   teReceptionBonus: number | null;
+  positionLimits?: Record<string, number>;
+  usesUndroppableList?: boolean | null;
+  rosterLockPolicy?: string | null;
 };
 export type League = {
   id: string;
@@ -55,6 +60,7 @@ export type League = {
   scoring: string;
   source: string;
   rosterRules?: RosterRules;
+  transactionLocked?: boolean | null;
   players: Player[];
   slots: Slot[];
   standings: Standing[];

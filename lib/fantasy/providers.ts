@@ -164,6 +164,11 @@ export function espnPlayer(
     injury: p.injuryStatus ?? 'ACTIVE',
     ...info,
     locked,
+    dropLocked:
+      typeof pool.rosterLocked === 'boolean' ? pool.rosterLocked : null,
+    pendingTransaction:
+      Array.isArray(entry.pendingTransactionIds) &&
+      entry.pendingTransactionIds.length > 0,
     reserve: entry.lineupSlotId === 21,
     taxi: false,
   };
@@ -291,6 +296,10 @@ export function fromESPN(
     fetchedAt: new Date().toISOString(),
     scoring: `${recRule === 1 ? 'PPR' : recRule === 0.5 ? 'Half PPR' : recRule === 0 ? 'Standard' : `${recRule} PPR`} · ${raw.teams.length} teams`,
     source: 'ESPN · league-scored weekly projections',
+    transactionLocked:
+      typeof team.isTransactionLocked === 'boolean'
+        ? team.isTransactionLocked
+        : null,
     rosterRules: {
       teams: count(settings.size),
       benchSlots:
@@ -306,6 +315,25 @@ export function fromESPN(
       bestBall: null,
       receptionPoints: numeric(recRule),
       teReceptionBonus: null,
+      usesUndroppableList:
+        typeof settings.rosterSettings?.isUsingUndroppableList === 'boolean'
+          ? settings.rosterSettings.isUsingUndroppableList
+          : null,
+      rosterLockPolicy:
+        typeof settings.rosterSettings?.rosterLocktimeType === 'string'
+          ? settings.rosterSettings.rosterLocktimeType
+          : null,
+      positionLimits: Object.fromEntries(
+        Object.entries(settings.rosterSettings?.positionLimits ?? {}).flatMap(
+          ([id, limit]) =>
+            positions[id] &&
+            typeof limit === 'number' &&
+            Number.isInteger(limit) &&
+            limit > 0
+              ? [[positions[id], limit]]
+              : [],
+        ),
+      ),
     },
     stale: !ownRosterVerified,
     players,
