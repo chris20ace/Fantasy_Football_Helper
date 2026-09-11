@@ -1,0 +1,910 @@
+/* Shared reading and interaction rules across the dashboard and account setup. */
+:root {
+  --muted-foreground: #52627a;
+}
+html {
+  scroll-padding-bottom: 100px;
+}
+:is(button, a, input, textarea, summary, [tabindex]):focus-visible {
+  outline: 3px solid #2459ed;
+  outline-offset: 3px;
+}
+.desk [data-slot='tabs-content']:focus-visible,
+.desk [data-slot='table-container']:focus-visible,
+.desk .search-field:focus-within {
+  outline: 3px solid #2459ed;
+  outline-offset: 3px;
+  border-radius: 8px;
+}
+.desk button:not([role='checkbox']),
+.desk [data-slot='select-trigger'],
+.desk .external-button,
+.desk .text-link,
+.desk .account-link,
+.setup-page button,
+.setup-page summary,
+.setup-page .account-link {
+  min-height: 44px;
+}
+.desk [data-slot='button'],
+.desk [data-slot='select-trigger'] {
+  font-size: 14px !important;
+}
+.desk [data-slot='select-trigger'] {
+  height: auto !important;
+  max-width: 100%;
+  min-width: 0;
+}
+.desk [data-slot='select-value'] {
+  display: block !important;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+[data-slot='select-content'] {
+  max-width: min(var(--available-width, 100vw), calc(100vw - 24px));
+}
+[data-slot='select-item'] {
+  min-height: 44px;
+  padding: 10px 32px 10px 12px;
+  line-height: 1.5;
+}
+[data-slot='select-item'][data-highlighted] {
+  background: #eaf0ff;
+  color: #1b4fc8;
+}
+.desk summary {
+  min-height: 44px;
+  padding: 10px 0;
+  cursor: pointer;
+  line-height: 1.5;
+  font-weight: 600;
+}
+.desk .content {
+  container: dashboard / inline-size;
+  padding: 32px;
+}
+.desk .page-heading h1 {
+  font-size: clamp(28px, 2.6vw, 38px);
+  letter-spacing: -1px;
+}
+.desk .page-heading .eyebrow {
+  display: none;
+}
+.desk .page-heading p,
+.desk .panel > p,
+.desk .feature p {
+  font-size: 15px;
+  line-height: 1.6;
+}
+.desk .page-heading > div:first-child,
+.desk .section-head > div,
+.desk .insight-section-head > div,
+.desk .lab-banner > div,
+.desk .player-name > div {
+  min-width: 0;
+}
+.desk
+  :is(
+    h1,
+    h2,
+    h3,
+    .player-name strong,
+    .team-name,
+    .league-meta,
+    .keep-label,
+    .card-warning,
+    .card-opportunity
+  ) {
+  overflow-wrap: anywhere;
+}
+.desk .topbar {
+  padding: 0 32px;
+  min-height: 68px;
+  letter-spacing: 0;
+}
+.desk .topbar-title {
+  font-size: 16px;
+  color: #243b5c;
+}
+.desk .topbar-season {
+  color: #52627a;
+  font-size: 13px;
+  font-weight: 400;
+}
+.desk .live-indicator {
+  font-size: 13px;
+}
+.desk .page-tabs {
+  gap: 24px !important;
+  width: fit-content;
+  max-width: 100%;
+  min-height: 48px;
+  height: auto;
+  padding: 3px;
+}
+.desk [data-slot='tabs-trigger'] {
+  min-height: 44px;
+  font-size: 14px;
+}
+.desk .page-tabs [data-slot='tabs-trigger'] {
+  font-size: 14px !important;
+}
+.desk .eyebrow {
+  font-size: 11px;
+  letter-spacing: 1px;
+}
+.desk
+  :is(
+    .muted,
+    .stat-label,
+    .stat > small,
+    .team-name,
+    .league-meta,
+    .card-warning,
+    .card-opportunity,
+    .card-neutral,
+    .card-bottom,
+    .check-note small,
+    .caveat,
+    .source-note,
+    .tiny,
+    .kickoff,
+    .lock-label,
+    .player-name small,
+    .keep-label,
+    .forecast,
+    .forecast b,
+    .forecast b span,
+    .card-matchup span:not(.versus),
+    .lab-totals span,
+    .workspace-footer,
+    .notes-panel label
+  ) {
+  font-size: 13px;
+  line-height: 1.5;
+}
+.desk
+  :is(
+    .muted,
+    .stat > small,
+    .league-meta,
+    .forecast,
+    .forecast b,
+    .forecast b span,
+    .card-matchup span:not(.versus),
+    .workspace-footer,
+    .lab-totals span,
+    .kickoff,
+    .source-note,
+    .tiny
+  ) {
+  color: #52627a;
+}
+.desk .player-name strong {
+  font-size: 14px;
+  line-height: 1.5;
+  white-space: normal;
+}
+.desk
+  :is(.position, .injury, .slot-badge, .platform, .count-pill, .method-tag) {
+  font-size: 11px;
+  line-height: 1.5;
+}
+.desk .position {
+  flex-shrink: 0;
+  min-width: 32px;
+}
+.desk .injury {
+  font-size: 11px !important;
+}
+.desk .position.rb {
+  color: #246353;
+}
+.desk .position.wr {
+  color: #315c9a;
+}
+.desk .position.qb {
+  color: #84447f;
+}
+.desk .player-name {
+  min-width: 0;
+}
+.desk
+  :is(
+    .watch-row strong,
+    .overlap-row strong,
+    .check-note strong,
+    .notes-panel label,
+    .text-link
+  ) {
+  font-size: 14px;
+}
+.desk
+  :is(
+    .watch-row p,
+    .watch-row small,
+    .overlap-row small,
+    .check-note p,
+    .opponent-name,
+    .card-status,
+    .portfolio-total p,
+    .gain-number small,
+    .exposure-cell b span
+  ) {
+  font-size: 13px;
+  line-height: 1.5;
+  color: #52627a;
+}
+.desk :is(.tiny, .caveat, .source-note) {
+  font-size: 13px !important;
+  color: #52627a !important;
+}
+.desk .forecast,
+.desk .league-meta {
+  flex-wrap: wrap;
+}
+.desk .forecast b,
+.desk .overlap-value {
+  flex-shrink: 0;
+}
+.desk .opponent-name {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.desk .card-matchup span:not(.versus) {
+  letter-spacing: 0;
+}
+.desk .overlap-row > div:first-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.desk .feature-week,
+.desk .feature-score small {
+  color: #c4d1e5;
+  font-size: 12px;
+}
+.desk .feature h2 {
+  max-width: 640px;
+}
+.desk .feature-action {
+  font-size: 14px !important;
+}
+.desk .section-head {
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.desk .section-head h2 {
+  font-size: 22px;
+}
+.desk .league-grid,
+.desk .waiver-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 290px), 1fr));
+}
+.desk .league-grid {
+  gap: 20px;
+}
+.desk .waiver-grid {
+  align-items: start;
+}
+.desk .waiver-values {
+  gap: 16px;
+}
+.desk .waiver-values > div {
+  min-width: 0;
+  flex: 1;
+}
+.desk .waiver-evidence {
+  border-top: 1px solid #dbe3ef;
+  margin-top: 4px;
+}
+.desk .waiver-evidence summary {
+  color: #254fb0;
+}
+.desk .waiver-evidence small {
+  display: block;
+  font-size: 13px;
+  color: #52627a;
+  line-height: 1.6;
+}
+.desk .insight-caution {
+  margin: 12px 0 20px;
+  padding: 4px 14px;
+}
+.desk .insight-caution p {
+  margin: 0 0 14px;
+}
+.desk .insight-model-card h2 {
+  line-height: 1.3;
+}
+.desk .model-lineup-grid > div {
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+}
+.desk .model-lineup-grid strong {
+  overflow-wrap: anywhere;
+}
+.desk .lab-toolbar .league-select {
+  flex: 1;
+  max-width: 580px;
+}
+.desk .lab-layout {
+  grid-template-columns: minmax(0, 1fr) 290px;
+}
+.desk .lab-layout > div,
+.desk .lab-insights {
+  min-width: 0;
+  order: initial;
+}
+.desk .lineup-panel::before {
+  display: none;
+}
+.desk .responsive-table {
+  font-size: 14px;
+  min-width: 0;
+  width: 100%;
+}
+.desk .responsive-table th {
+  white-space: normal;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #52627a;
+}
+.desk .responsive-table td {
+  white-space: normal;
+}
+.desk .insight-table {
+  table-layout: fixed;
+}
+.desk .insight-table th:first-child {
+  width: 27%;
+}
+.desk .insight-table td,
+.desk .insight-table th {
+  overflow-wrap: anywhere;
+}
+.desk .player-history {
+  width: auto;
+}
+.desk .league-chips button {
+  white-space: normal;
+  text-align: left;
+  font-size: 13px;
+  max-width: 100%;
+}
+.desk .toast {
+  font-size: 14px;
+  line-height: 1.5;
+  max-width: min(480px, calc(100vw - 32px));
+}
+.desk .toast > svg {
+  color: #a8c3ff;
+}
+.desk .toast > button,
+.desk .search-field > button {
+  display: grid;
+  place-items: center;
+  min-width: 44px;
+  flex-shrink: 0;
+}
+.skip-link {
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  z-index: 100;
+  padding: 14px 20px;
+  background: #fff;
+  color: #173b95;
+  border-radius: 8px;
+  transform: translateY(-160%);
+}
+.skip-link:focus {
+  transform: translateY(0);
+}
+.rail-interior {
+  position: relative;
+}
+.rail-interior .brand small {
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: #b0bfd6;
+  margin-bottom: 30px;
+}
+.rail-interior .rail-label {
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  color: #a9bad4;
+}
+.rail-interior .rail-leagues button {
+  min-height: 44px;
+  font-size: 13px;
+}
+.rail-interior .rail-leagues button > span:nth-child(2) {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.rail-interior :focus-visible {
+  outline-color: #a8c3ff;
+}
+.drawer-close,
+.rail-account-actions {
+  display: none;
+}
+
+/* Respond to the reading pane, so a laptop sidebar never crowds the content. */
+@container dashboard (max-width: 1120px) {
+  .desk .lab-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .desk .lab-insights {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .desk .overview-split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .desk .insight-scoreboard {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .desk .insight-model-card {
+    grid-column: 1 / -1;
+  }
+  .desk .feature-score {
+    display: none;
+  }
+}
+@container dashboard (max-width: 1000px) {
+  /* Explicit table/row/cell roles preserve semantics when rows become cards. */
+  .desk .responsive-table,
+  .desk .responsive-table tbody {
+    display: block;
+    min-width: 0;
+  }
+  .desk .responsive-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .desk .responsive-table tbody {
+    display: grid;
+    gap: 12px;
+  }
+  .desk .responsive-table tr {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px 16px;
+    padding: 16px;
+    border: 1px solid #dbe3ef;
+    border-radius: 12px;
+    background: #fff;
+  }
+  .desk .responsive-table tr.changed-row {
+    border-color: #8daef5;
+    background: #f3f7ff;
+  }
+  .desk .responsive-table tr.my-standing {
+    border-color: #8daef5;
+    background: #f3f7ff;
+  }
+  .desk .responsive-table td {
+    display: block;
+    padding: 0;
+    min-width: 0;
+    width: auto;
+    border: 0;
+    text-align: left !important;
+    overflow-wrap: anywhere;
+  }
+  .desk .responsive-table td::before {
+    content: attr(data-label);
+    display: block;
+    margin-bottom: 5px;
+    color: #52627a;
+    font-weight: 500;
+    font-size: 12px;
+    line-height: 1.4;
+  }
+  .desk .responsive-table td:first-child {
+    grid-column: 1 / -1;
+  }
+  .desk .portfolio-table td:last-child,
+  .desk .bench-table td:nth-child(2) {
+    grid-column: 1 / -1;
+  }
+  .desk .lineup-table tr {
+    grid-template-columns: minmax(0, 1fr) 90px;
+  }
+  .desk .lineup-table td:first-child {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #dbe3ef;
+  }
+  .desk .lineup-table td:first-child::before {
+    margin: 0 auto 0 0;
+  }
+  .desk .lineup-table td:nth-child(4),
+  .desk .lineup-table td:nth-child(5) {
+    padding-top: 12px;
+    border-top: 1px solid #dbe3ef;
+  }
+  .desk .lineup-table .kickoff,
+  .desk .lineup-table .lock-label {
+    margin-left: 0;
+    margin-top: 6px;
+  }
+  .desk .standings-table td:first-child {
+    grid-column: auto;
+  }
+  .desk .standings-table td:nth-child(2) {
+    grid-column: 1 / -1;
+    grid-row: 1;
+  }
+  .desk .player-history summary {
+    padding-top: 0;
+  }
+  .desk .player-history summary strong {
+    font-size: 16px;
+  }
+}
+@container dashboard (max-width: 720px) {
+  .desk .page-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .desk .stat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .desk .lab-insights,
+  .desk .model-lineup-grid {
+    grid-template-columns: 1fr;
+  }
+  .desk .insight-toolbar,
+  .desk .lab-toolbar {
+    align-items: stretch;
+    flex-wrap: wrap;
+  }
+  .desk .lab-toolbar .league-select,
+  .desk .insight-toolbar [data-slot='select-trigger'] {
+    flex: 1 1 100%;
+    width: 100%;
+    max-width: 100%;
+  }
+  .desk .insight-toolbar > button:last-child {
+    margin-left: auto;
+  }
+  .desk .insight-section-head {
+    flex-wrap: wrap;
+  }
+  .desk .lab-banner {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+@media (min-width: 768px) and (max-width: 1199px) {
+  .desk {
+    --desk-sidebar-width: 208px;
+  }
+  .rail-interior {
+    padding: 24px 18px;
+  }
+  .rail-interior .brand {
+    font-size: 20px;
+  }
+  .rail-interior .brand-icon {
+    width: 28px;
+    height: 32px;
+  }
+  .desk .content {
+    padding: 24px;
+  }
+  .desk .topbar {
+    padding: 0 24px;
+  }
+  .desk .page-tabs {
+    gap: 14px !important;
+  }
+}
+@media (max-width: 767px) {
+  .desk .content {
+    padding: 22px 16px calc(100px + env(safe-area-inset-bottom));
+  }
+  .desk .topbar {
+    min-height: 60px;
+    padding: 0 16px 0 8px;
+  }
+  .desk .mobile-trigger {
+    width: 44px;
+    height: 44px;
+    flex-shrink: 0;
+  }
+  .desk .topbar-title {
+    gap: 4px;
+  }
+  .desk .topbar-season,
+  .desk .topbar-right > :not(.live-indicator) {
+    display: none;
+  }
+  .desk .live-indicator {
+    font-size: 12px;
+  }
+  .rail-interior {
+    padding: 24px;
+  }
+  .rail-interior .brand {
+    padding-right: 34px;
+    font-size: 23px;
+  }
+  .drawer-close {
+    display: grid;
+    place-items: center;
+    position: absolute;
+    right: 12px;
+    top: 12px;
+    width: 44px;
+    height: 44px;
+    color: #fff;
+    border-radius: 8px;
+  }
+  .rail-account-actions {
+    display: grid;
+    gap: 8px;
+    margin-top: 24px;
+    padding-top: 16px;
+    border-top: 1px solid #334864;
+  }
+  .rail-account-actions .account-link,
+  .rail-account-actions .account-signout {
+    display: flex;
+    align-items: center;
+    min-height: 44px;
+    color: #dce7fb;
+    font-size: 14px;
+    padding: 0 8px;
+  }
+  .rail-interior .rail-bottom {
+    padding-top: 24px;
+  }
+  .desk .page-heading {
+    gap: 16px;
+  }
+  .desk .page-heading h1 {
+    font-size: 28px;
+  }
+  .desk .heading-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    width: 100%;
+  }
+  .desk .heading-actions > * {
+    width: 100%;
+    min-width: 0;
+    height: 44px !important;
+  }
+  .desk .page-tabs {
+    position: fixed;
+    z-index: 30;
+    inset: auto 0 0;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    width: 100%;
+    max-width: none;
+    min-height: 68px;
+    height: auto;
+    padding: 6px max(6px, env(safe-area-inset-left))
+      calc(6px + env(safe-area-inset-bottom));
+    gap: 2px !important;
+    margin: 0 !important;
+    border-top: 1px solid #d3dcea;
+    background: #fff;
+    box-shadow: 0 -4px 18px #17243b0a;
+  }
+  .desk .page-tabs [data-slot='tabs-trigger'] {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    height: 56px;
+    padding: 6px 2px;
+    min-width: 0;
+    gap: 4px;
+    border-radius: 8px;
+    font-size: 11px !important;
+    line-height: 1.4;
+    color: #52627a;
+  }
+  .desk .page-tabs [data-slot='tabs-trigger'][data-active] {
+    background: #eaf0ff;
+    color: #1b4fc8;
+    font-weight: 750;
+  }
+  .desk .page-tabs [data-slot='tabs-trigger']::after {
+    display: none;
+  }
+  .desk .page-tabs svg {
+    display: block;
+    width: 20px;
+    height: 20px;
+  }
+  .desk .feature,
+  .desk .league-card,
+  .desk .lab-banner {
+    padding: 20px;
+  }
+  .desk .feature h2 {
+    font-size: 24px;
+  }
+  .desk .feature-week {
+    display: none;
+  }
+  .desk .panel {
+    padding: 18px 16px;
+  }
+  .desk .stat {
+    padding: 16px 14px;
+  }
+  .desk .stat > b {
+    font-size: 26px;
+    letter-spacing: -0.5px;
+  }
+  .desk .filter-buttons {
+    align-self: stretch;
+    display: flex;
+    gap: 6px;
+  }
+  .desk .filter-buttons button {
+    flex: 1;
+    padding: 8px;
+  }
+  .desk .lab-totals {
+    gap: 12px;
+    width: 100%;
+  }
+  .desk .lab-totals span {
+    font-size: 11px;
+    letter-spacing: 0;
+  }
+  .desk .lab-banner .lab-totals b {
+    font-size: 30px;
+  }
+  .desk .insight-model-card {
+    padding: 22px;
+  }
+  .desk .insight-metric {
+    padding: 16px;
+    gap: 10px;
+  }
+  .desk .insight-metric > b {
+    font-size: 30px;
+  }
+  .desk .insight-metric p,
+  .desk .insight-metric > span {
+    font-size: 13px;
+    line-height: 1.5;
+  }
+  .desk .insight-filters {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+  .desk .insight-filters > *,
+  .desk .table-toolbar [data-slot='select-trigger'] {
+    width: 100%;
+    max-width: none;
+  }
+  .desk input,
+  .desk textarea,
+  .desk [data-slot='select-trigger'] {
+    font-size: 16px !important;
+  }
+  .desk .toast {
+    bottom: calc(84px + env(safe-area-inset-bottom));
+    right: 16px;
+  }
+}
+
+/* The connection flow uses the same reading size and generous touch targets. */
+.auth-shell > *,
+.setup-grid > *,
+.setup-content {
+  min-width: 0;
+}
+.password-field button {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  top: 2px;
+  right: 2px;
+  border-radius: 7px;
+}
+.auth-switch button {
+  min-height: 44px;
+}
+.setup-card .league-picker .league-choices input,
+.setup-card input[type='checkbox'] {
+  width: 20px;
+  height: 20px;
+  min-height: 20px;
+  padding: 0;
+  flex-shrink: 0;
+}
+.league-picker .league-choices label {
+  min-height: 60px;
+}
+.setup-page
+  :is(
+    .league-choices small,
+    .espn-private,
+    .connector-install p,
+    .espn-manual > p,
+    .espn-shortcut small,
+    .espn-consent,
+    .connector-steps,
+    .setup-progress,
+    .league-picker-actions,
+    .espn-review > p
+  ) {
+  font-size: 13px;
+  line-height: 1.6;
+  color: #52627a;
+}
+.setup-page
+  :is(
+    .league-choices strong,
+    .league-picker-actions button,
+    .disconnect-row button
+  ) {
+  font-size: 14px;
+}
+.setup-page summary {
+  line-height: 1.6;
+  padding: 10px 0;
+}
+.setup-page .league-picker-actions {
+  flex-wrap: wrap;
+}
+@media (max-width: 1050px) {
+  .setup-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 480px) {
+  .auth-aside {
+    padding: 20px;
+  }
+  .auth-main {
+    padding: 28px 20px 44px;
+  }
+  .setup-top {
+    padding: 14px 16px;
+    height: auto;
+    min-height: 72px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .setup-content {
+    width: 100%;
+    padding: 28px 16px 44px;
+  }
+  .setup-card {
+    padding: 20px 16px;
+  }
+  .setup-heading h1 {
+    font-size: 28px;
+  }
+  .setup-dashboard {
+    width: 100%;
+    justify-content: center;
+  }
+  .espn-shortcut,
+  .espn-review {
+    padding: 16px 12px;
+  }
+  .setup-page .account-signout {
+    min-height: 44px;
+  }
+}

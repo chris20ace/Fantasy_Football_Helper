@@ -272,7 +272,7 @@ export default function Insights({
           <div className="insight-scoreboard">
             <section className="insight-model-card">
               <div className="eyebrow">SUNDAY DESK MODEL · WEEK {week}</div>
-              <h2>Opportunity comes before points.</h2>
+              <h2>Projections based on playing time.</h2>
               <p>
                 Current depth charts, roster availability and comparable
                 workloads come first. Then we apply your league’s scoring.
@@ -288,7 +288,7 @@ export default function Insights({
             </section>
             <section className="panel insight-metric">
               <Target size={22} />
-              <span>Optimized model total</span>
+              <span>Suggested lineup · model points</span>
               <b>
                 {pts(analysis.recommendedTotal)}
                 <small> pts</small>
@@ -301,7 +301,7 @@ export default function Insights({
             </section>
             <section className="panel insight-metric">
               <ChartNoAxesCombined size={22} />
-              <span>Potential waiver upside</span>
+              <span>Best potential waiver gain</span>
               <b>
                 {waivers[0]?.gain != null ? `+${pts(waivers[0].gain)}` : '—'}
                 <small> pts</small>
@@ -328,15 +328,18 @@ export default function Insights({
                 Open league <ArrowUpRight size={16} />
               </a>
             </div>
-            <p className="insight-caution">
-              Potential gain compares an add with your already-optimized roster.
-              It assumes a roster spot can be made without losing those
-              starters. Check required drops, roster limits, waiver timing and
-              budget in your league; no claims are submitted here. We compare up
-              to 24 eligible candidates, four per eligibility group. Gain
-              calculations are available for leagues with up to 10 starter
-              slots.
-            </p>
+            <details className="insight-caution">
+              <summary>How to use waiver suggestions</summary>
+              <p>
+                Potential gain compares an add with your already-optimized
+                roster. It assumes a roster spot can be made without losing
+                those starters. Check required drops, roster limits, waiver
+                timing and budget in your league; no claims are submitted here.
+                We compare up to 24 eligible candidates, four per eligibility
+                group. Gain calculations are available for leagues with up to 10
+                starter slots.
+              </p>
+            </details>
             {waivers.length ? (
               <div className="waiver-grid">
                 {waivers.slice(0, 6).map((pick, i) => (
@@ -373,12 +376,15 @@ export default function Insights({
                       </div>
                     </div>
                     <p>{pick.reason}</p>
-                    <RoleDetails player={pick.player} />
-                    <small>
-                      {pick.player.forecast.games} games · observed range{' '}
-                      {pts(pick.player.forecast.low)}–
-                      {pts(pick.player.forecast.high)} pts
-                    </small>
+                    <details className="waiver-evidence">
+                      <summary>Why this pick?</summary>
+                      <RoleDetails player={pick.player} />
+                      <small>
+                        {pick.player.forecast.games} games · observed range{' '}
+                        {pts(pick.player.forecast.low)}–
+                        {pts(pick.player.forecast.high)} pts
+                      </small>
+                    </details>
                     {pick.player.waiverDate && (
                       <small>
                         Waiver date:{' '}
@@ -427,7 +433,7 @@ export default function Insights({
             <div className="insight-section-head">
               <div>
                 <div className="eyebrow">INDEPENDENT FORECASTS</div>
-                <h2>Your players, under your rules.</h2>
+                <h2>Your player projections</h2>
                 <p>
                   Compare with the provider estimate. Open a player’s history to
                   see what drives the model.
@@ -462,15 +468,18 @@ export default function Insights({
                 </SelectContent>
               </Select>
             </div>
-            <Table className="insight-table">
+            <Table
+              className="responsive-table insight-table"
+              aria-label="Player estimates and past performance"
+            >
               <TableHeader>
                 <TableRow>
                   <TableHead>Player / game history</TableHead>
-                  <TableHead>Current-role model</TableHead>
-                  <TableHead>Historical baseline</TableHead>
-                  <TableHead>Provider</TableHead>
+                  <TableHead>Model estimate</TableHead>
+                  <TableHead>Past baseline</TableHead>
+                  <TableHead>Provider estimate</TableHead>
                   <TableHead>Difference</TableHead>
-                  <TableHead>Observed range</TableHead>
+                  <TableHead>Past range</TableHead>
                   <TableHead>Games</TableHead>
                 </TableRow>
               </TableHeader>
@@ -482,7 +491,7 @@ export default function Insights({
                       : null;
                   return (
                     <TableRow key={p.id}>
-                      <TableCell>
+                      <TableCell data-label="Player & history">
                         <details className="player-history">
                           <summary>
                             <strong>{p.name}</strong>
@@ -513,6 +522,7 @@ export default function Insights({
                                     {g.season} W{g.week}
                                   </span>
                                   <meter
+                                    aria-label={`${p.name}, ${g.season} week ${g.week} fantasy points`}
                                     min={Math.min(
                                       0,
                                       ...p.forecast.history.map(
@@ -542,7 +552,7 @@ export default function Insights({
                           </p>
                         </details>
                       </TableCell>
-                      <TableCell>
+                      <TableCell data-label="Model estimate">
                         <strong>{pts(p.projection)}</strong>
                         <span
                           className={`role-badge ${p.role?.status ?? 'unknown'}`}
@@ -562,24 +572,28 @@ export default function Insights({
                           </small>
                         )}
                       </TableCell>
-                      <TableCell>
+                      <TableCell data-label="Past baseline">
                         {pts(p.forecast.baselinePoints)}
                         <small className="role-withheld">
                           Past production only
                         </small>
                       </TableCell>
-                      <TableCell>{pts(p.providerProjection)}</TableCell>
-                      <TableCell>
+                      <TableCell data-label="Provider estimate">
+                        {pts(p.providerProjection)}
+                      </TableCell>
+                      <TableCell data-label="Model vs. provider">
                         {diff == null
                           ? '—'
                           : `${diff > 0 ? '+' : ''}${pts(diff)}`}
                       </TableCell>
-                      <TableCell>
+                      <TableCell data-label="Past range">
                         {p.forecast.low == null
                           ? '—'
                           : `${pts(p.forecast.low)}–${pts(p.forecast.high)}`}
                       </TableCell>
-                      <TableCell>{p.forecast.games}</TableCell>
+                      <TableCell data-label="Games in model">
+                        {p.forecast.games}
+                      </TableCell>
                     </TableRow>
                   );
                 })}

@@ -13,6 +13,7 @@ import {
   Clock3,
   Copy,
   ExternalLink,
+  Info,
   Layers3,
   LayoutDashboard,
   LockKeyhole,
@@ -70,11 +71,11 @@ type Preferences = {
   reviewed: Record<string, boolean>;
 };
 const menu = [
-  { id: 'overview', label: 'Weekly overview', icon: LayoutDashboard },
-  { id: 'lab', label: 'Lineup lab', icon: Target },
-  { id: 'insights', label: 'Insights & waivers', icon: Zap },
-  { id: 'portfolio', label: 'Player portfolio', icon: Layers3 },
-  { id: 'sources', label: 'Connections & guide', icon: Radio },
+  { id: 'overview', label: 'Overview', icon: LayoutDashboard },
+  { id: 'lab', label: 'Lineup', icon: Target },
+  { id: 'insights', label: 'Insights', icon: Zap },
+  { id: 'portfolio', label: 'Players', icon: Layers3 },
+  { id: 'sources', label: 'Accounts', icon: Radio },
 ] as const;
 const number = (n: number | null | undefined) =>
   n == null ? '—' : n.toFixed(1);
@@ -111,6 +112,13 @@ function Rail({
   return (
     <Sidebar className="app-sidebar">
       <div className="rail-interior">
+        <button
+          className="drawer-close"
+          aria-label="Close navigation"
+          onClick={() => setOpenMobile(false)}
+        >
+          <X size={20} />
+        </button>
         <div className="brand">
           <span className="brand-icon">
             <Zap size={23} />
@@ -152,6 +160,10 @@ function Rail({
               {l.error ? <CircleAlert size={12} /> : <ChevronRight size={12} />}
             </button>
           ))}
+        </div>
+        <div className="rail-account-actions">
+          <SetupLink className="account-link">Manage leagues</SetupLink>
+          <SignOut />
         </div>
         <div className="rail-bottom">
           <ShieldCheck size={19} />
@@ -317,10 +329,8 @@ export default function FantasyDashboard({
       );
   }, []);
   useEffect(() => {
-    if (!notice) return;
-    const timer = setTimeout(() => setNotice(''), 6000);
-    return () => clearTimeout(timer);
-  }, [notice]);
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  }, [view, selected]);
   const save = async (value: Preferences) => {
     if (!prefReady) return;
     setSaving(true);
@@ -404,8 +414,15 @@ export default function FantasyDashboard({
   return (
     <SidebarProvider
       className="desk"
-      style={{ '--sidebar-width': '238px' } as React.CSSProperties}
+      style={
+        {
+          '--sidebar-width': 'var(--desk-sidebar-width, 238px)',
+        } as React.CSSProperties
+      }
     >
+      <a className="skip-link" href="#main-content">
+        Skip to dashboard
+      </a>
       <Rail
         view={view}
         onView={setView}
@@ -417,8 +434,8 @@ export default function FantasyDashboard({
           <div className="topbar-title">
             <SidebarTrigger className="mobile-trigger" />
             <span>
-              {data?.season ?? 2026} SEASON <span className="dot">/</span> YOUR
-              COMMAND CENTER
+              Sunday Desk{' '}
+              <span className="topbar-season">· {data?.season ?? 2026}</span>
             </span>
           </div>
           <div className="topbar-right">
@@ -442,7 +459,7 @@ export default function FantasyDashboard({
             <SignOut />
           </div>
         </header>
-        <div className="content">
+        <div className="content" id="main-content" tabIndex={-1}>
           <div className="page-heading">
             <div>
               <div className="eyebrow">
@@ -456,22 +473,22 @@ export default function FantasyDashboard({
               </div>
               <h1>
                 {view === 'overview'
-                  ? 'Game plan, ready.'
+                  ? `Week ${selectedWeek} overview`
                   : view === 'lab'
-                    ? 'Find your strongest lineup.'
+                    ? 'Set your lineup'
                     : view === 'portfolio'
-                      ? 'One player. Many stakes.'
+                      ? 'Players across leagues'
                       : view === 'insights'
-                        ? 'Find your next advantage.'
-                        : 'Your connected workspace.'}
+                        ? 'Projections & waivers'
+                        : 'Your connections'}
               </h1>
               <p>
                 {view === 'overview'
                   ? `${leagues.length} leagues. One clear view of your week.`
                   : view === 'lab'
-                    ? 'Compare every eligible combination, with game locks respected.'
+                    ? 'Compare starters using provider estimates, with game locks respected.'
                     : view === 'portfolio'
-                      ? 'Understand your exposure before every kickoff.'
+                      ? 'See which players you own and start in each league.'
                       : view === 'insights'
                         ? 'Independent projections and waiver ideas, tailored to each league.'
                         : 'Know where your data comes from and when to refresh it.'}
@@ -545,19 +562,15 @@ export default function FantasyDashboard({
             </div>
           )}
           <Tabs value={view} onValueChange={(v) => setView(v as View)}>
-            <TabsList variant="line" className="page-tabs">
+            <TabsList
+              variant="line"
+              className="page-tabs"
+              aria-label="Dashboard views"
+            >
               {menu.map((m) => (
                 <TabsTrigger key={m.id} value={m.id}>
                   <m.icon size={15} />
-                  <span>
-                    {m.id === 'sources'
-                      ? 'Connections'
-                      : m.id === 'portfolio'
-                        ? 'Portfolio'
-                        : m.id === 'overview'
-                          ? 'Overview'
-                          : m.label}
-                  </span>
+                  <span>{m.label}</span>
                 </TabsTrigger>
               ))}
             </TabsList>
@@ -611,7 +624,7 @@ export default function FantasyDashboard({
                         {issues.length
                           ? 'Work through the watchlist, compare your options, then set your lineup in the league app.'
                           : upgrades.length
-                            ? 'Open the lineup lab to compare projected alternatives under each league’s scoring rules.'
+                            ? 'Compare projected starters using your league’s scoring rules.'
                             : 'Review your lineup, track your matchups, and see where your fantasy teams overlap.'}
                       </p>
                       <Button
@@ -626,7 +639,7 @@ export default function FantasyDashboard({
                           )
                         }
                       >
-                        Open lineup lab <ArrowRight size={15} />
+                        Review lineup <ArrowRight size={15} />
                       </Button>
                     </div>
                     <div className="feature-score">
@@ -637,6 +650,8 @@ export default function FantasyDashboard({
                       </b>
                       <small>LEAGUES REVIEWED</small>
                       <Progress
+                        aria-label="Leagues reviewed"
+                        aria-valuetext={`${reviewed} of ${leagues.length} leagues reviewed`}
                         value={
                           leagues.length ? (reviewed / leagues.length) * 100 : 0
                         }
@@ -770,6 +785,7 @@ export default function FantasyDashboard({
                               </small>
                             </b>
                             <Progress
+                              aria-label="League share"
                               value={
                                 (p.leagues.length /
                                   Math.max(
@@ -787,7 +803,7 @@ export default function FantasyDashboard({
                         className="text-link"
                         onClick={() => setView('portfolio')}
                       >
-                        Explore your player portfolio <ArrowRight size={14} />
+                        See all your players <ArrowRight size={14} />
                       </button>
                     </section>
                   </div>
@@ -802,6 +818,7 @@ export default function FantasyDashboard({
                           key={p}
                           size="sm"
                           variant={platform === p ? 'secondary' : 'ghost'}
+                          aria-pressed={platform === p}
                           onClick={() => setPlatform(p)}
                         >
                           {p === 'all' ? 'All leagues' : p.toUpperCase()}
@@ -905,7 +922,7 @@ export default function FantasyDashboard({
                     <div className="section-head">
                       <div>
                         <div className="eyebrow">YOUR FANTASY PORTFOLIO</div>
-                        <h2>Exposure, player by player</h2>
+                        <h2>Where you own each player</h2>
                         <p className="muted">
                           Counts show roster ownership, including bench, IR, and
                           taxi. Totals include loaded snapshots.
@@ -952,11 +969,14 @@ export default function FantasyDashboard({
                         </SelectContent>
                       </Select>
                     </div>
-                    <Table>
+                    <Table
+                      className="responsive-table portfolio-table"
+                      aria-label="Players across your leagues"
+                    >
                       <TableHeader>
                         <TableRow>
                           <TableHead>Player</TableHead>
-                          <TableHead>Roster exposure</TableHead>
+                          <TableHead>Owned in</TableHead>
                           <TableHead>Starting in</TableHead>
                           <TableHead>Your leagues</TableHead>
                         </TableRow>
@@ -964,7 +984,7 @@ export default function FantasyDashboard({
                       <TableBody>
                         {filteredPortfolio.map((p) => (
                           <TableRow key={p.key}>
-                            <TableCell>
+                            <TableCell data-label="Player">
                               <div className="player-name">
                                 <span
                                   className={`position ${p.position.toLowerCase()}`}
@@ -987,7 +1007,7 @@ export default function FantasyDashboard({
                                 </div>
                               </div>
                             </TableCell>
-                            <TableCell>
+                            <TableCell data-label="Owned in">
                               <div className="exposure-cell">
                                 <b>
                                   {p.leagues.length}{' '}
@@ -1000,6 +1020,7 @@ export default function FantasyDashboard({
                                   </span>
                                 </b>
                                 <Progress
+                                  aria-label="League share"
                                   value={
                                     (p.leagues.length /
                                       Math.max(
@@ -1012,11 +1033,11 @@ export default function FantasyDashboard({
                                 />
                               </div>
                             </TableCell>
-                            <TableCell>
+                            <TableCell data-label="Starting in">
                               {p.leagues.filter((l) => l.starter).length}{' '}
                               lineups
                             </TableCell>
-                            <TableCell>
+                            <TableCell data-label="Your leagues">
                               <div className="league-chips">
                                 {p.leagues.map((l) => (
                                   <button
@@ -1081,7 +1102,7 @@ export default function FantasyDashboard({
       </main>
       {notice && (
         <output className="toast">
-          <Check size={17} />
+          <Info size={17} />
           {notice}
           <button aria-label="Dismiss message" onClick={() => setNotice('')}>
             <X size={14} />
@@ -1197,12 +1218,12 @@ function LeagueCard({
           {l.status === 'pre_draft'
             ? 'Plan ahead for your draft'
             : a.enabled
-              ? 'Compare your lineup in the lab'
+              ? 'Review your lineup options'
               : 'Roster available for reference'}
         </div>
       )}
       <button className="card-bottom" onClick={onOpen}>
-        <span>Open lineup lab</span>
+        <span>Review lineup</span>
         <ArrowUpRight size={17} />
       </button>
     </article>
@@ -1297,13 +1318,13 @@ function LineupLab({
         </div>
         <div className="lab-totals">
           <div>
-            <span>CURRENT PROJECTION</span>
+            <span>CURRENT · PROVIDER PTS</span>
             <b>{number(a.currentTotal)}</b>
           </div>
           <ArrowRight size={22} />
           <div>
             <span>
-              {actionable ? 'SUGGESTED PROJECTION' : 'ROSTER REFERENCE'}
+              {actionable ? 'SUGGESTED · PROVIDER PTS' : 'ROSTER REFERENCE'}
             </span>
             <b className="green-text">
               {actionable ? number(a.recommendedTotal) : '—'}
@@ -1322,9 +1343,9 @@ function LineupLab({
       )}
       <Tabs value={mode} onValueChange={(v) => setMode(String(v))}>
         <TabsList variant="line">
-          <TabsTrigger value="lineup">Lineup & bench</TabsTrigger>
-          <TabsTrigger value="standings">League standings</TabsTrigger>
-          <TabsTrigger value="notes">My game plan</TabsTrigger>
+          <TabsTrigger value="lineup">Lineup</TabsTrigger>
+          <TabsTrigger value="standings">Standings</TabsTrigger>
+          <TabsTrigger value="notes">Notes</TabsTrigger>
         </TabsList>
         <TabsContent value="lineup">
           <div className="lab-layout">
@@ -1351,19 +1372,22 @@ function LineupLab({
                 </div>
                 <p className="muted">
                   {actionable
-                    ? 'Blue rows change the assignment. Move the full combination together, especially FLEX slots.'
+                    ? 'Compare provider point estimates below. Apply the full suggested lineup in your league app, including FLEX moves.'
                     : 'Choose the current week and refresh successfully to compare suggested starters.'}
                 </p>
-                <Table className="lineup-table">
+                <Table
+                  className="responsive-table lineup-table"
+                  aria-label="Current and suggested starters"
+                >
                   <TableHeader>
                     <TableRow>
                       <TableHead>Slot</TableHead>
                       <TableHead>Current starter</TableHead>
-                      <TableHead className="points-col">Proj.</TableHead>
+                      <TableHead className="points-col">Est. pts</TableHead>
                       <TableHead>
                         {actionable ? 'Suggested starter' : 'Reference'}
                       </TableHead>
-                      <TableHead className="points-col">Proj.</TableHead>
+                      <TableHead className="points-col">Est. pts</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -1375,23 +1399,26 @@ function LineupLab({
                           key={row.slot.id}
                           className={changed ? 'changed-row' : ''}
                         >
-                          <TableCell>
+                          <TableCell data-label="Roster slot">
                             <span className="slot-badge">{row.slot.label}</span>
                             {row.locked && (
                               <LockKeyhole size={11} className="slot-lock" />
                             )}
                           </TableCell>
-                          <TableCell>
+                          <TableCell data-label="Current starter">
                             <PlayerName player={row.current} />
                             {row.current && (
                               <Kickoff player={row.current} now={now} />
                             )}
                           </TableCell>
-                          <TableCell className="points-col">
+                          <TableCell
+                            data-label="Current est. pts"
+                            className="points-col"
+                          >
                             {row.current?.partial ? '~' : ''}
                             {number(row.current?.projection)}
                           </TableCell>
-                          <TableCell>
+                          <TableCell data-label="Suggested starter / status">
                             {changed ? (
                               <>
                                 <PlayerName player={row.recommended} />
@@ -1424,7 +1451,10 @@ function LineupLab({
                               </span>
                             )}
                           </TableCell>
-                          <TableCell className="points-col">
+                          <TableCell
+                            data-label="Suggested est. pts"
+                            className="points-col"
+                          >
                             {changed
                               ? number(row.recommended?.projection)
                               : '—'}
@@ -1454,12 +1484,15 @@ function LineupLab({
                     {l.players.filter((p) => !p.slot).length}
                   </span>
                 </div>
-                <Table>
+                <Table
+                  className="responsive-table bench-table"
+                  aria-label="Bench and reserve players"
+                >
                   <TableHeader>
                     <TableRow>
                       <TableHead>Player</TableHead>
                       <TableHead>Game lock</TableHead>
-                      <TableHead className="points-col">Proj.</TableHead>
+                      <TableHead className="points-col">Est. pts</TableHead>
                       <TableHead className="points-col">Actual</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -1473,17 +1506,23 @@ function LineupLab({
                       )
                       .map((p) => (
                         <TableRow key={p.id}>
-                          <TableCell>
+                          <TableCell data-label="Player">
                             <PlayerName player={p} />
                           </TableCell>
-                          <TableCell>
+                          <TableCell data-label="Game lock">
                             <Kickoff player={p} now={now} />
                           </TableCell>
-                          <TableCell className="points-col">
+                          <TableCell
+                            data-label="Provider est. pts"
+                            className="points-col"
+                          >
                             {p.partial ? '~' : ''}
                             {number(p.projection)}
                           </TableCell>
-                          <TableCell className="points-col">
+                          <TableCell
+                            data-label="Actual pts"
+                            className="points-col"
+                          >
                             {number(p.actual)}
                           </TableCell>
                         </TableRow>
@@ -1502,8 +1541,8 @@ function LineupLab({
                   {!actionable
                     ? 'Reference mode'
                     : a.changes.length
-                      ? 'There’s a combination to consider.'
-                      : 'Your current combination holds.'}
+                      ? 'Suggested lineup changes'
+                      : 'Keep your current lineup'}
                 </h2>
                 {actionable && a.gain !== null && a.gain > 0.05 && (
                   <div className="gain-number">
@@ -1527,7 +1566,7 @@ function LineupLab({
                 )}
                 <div className="method-tag">
                   <ShieldCheck size={14} />
-                  Projected points · your league scoring
+                  Provider estimates · league scoring
                 </div>
                 <a
                   href={l.url}
@@ -1589,7 +1628,10 @@ function LineupLab({
               </div>
               <Trophy size={24} />
             </div>
-            <Table>
+            <Table
+              className="responsive-table standings-table"
+              aria-label="League standings"
+            >
               <TableHeader>
                 <TableRow>
                   <TableHead>#</TableHead>
@@ -1604,15 +1646,15 @@ function LineupLab({
                     key={team.id}
                     className={team.mine ? 'my-standing' : ''}
                   >
-                    <TableCell>{i + 1}</TableCell>
-                    <TableCell>
+                    <TableCell data-label="Rank">{i + 1}</TableCell>
+                    <TableCell data-label="Team">
                       <strong>{team.name}</strong>
                       {team.mine && <span className="you-badge">YOU</span>}
                     </TableCell>
-                    <TableCell>
+                    <TableCell data-label="Win–loss–tie">
                       {team.wins}–{team.losses}–{team.ties}
                     </TableCell>
-                    <TableCell className="points-col">
+                    <TableCell data-label="Points for" className="points-col">
                       {number(team.points)}
                     </TableCell>
                   </TableRow>
