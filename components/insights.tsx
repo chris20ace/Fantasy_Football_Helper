@@ -40,6 +40,78 @@ const state = (p: ProjectedPlayer) =>
           ? p.injury.replaceAll('_', ' ')
           : '';
 
+function RoleDetails({ player }: { player: ProjectedPlayer }) {
+  const role = player.role;
+  if (!role) return <p>Current NFL role has not been verified.</p>;
+  const usage = role.usage;
+  return (
+    <div className="role-details">
+      <p>{role.detail}</p>
+      {role.ahead.length > 0 && (
+        <p>
+          <strong>Ahead on the chart:</strong> {role.ahead.join(' · ')}
+        </p>
+      )}
+      {['QB', 'RB', 'WR', 'TE'].includes(player.position) && (
+        <>
+          <div className="role-usage">
+            <span>
+              <b>
+                {usage.snaps === null
+                  ? '—'
+                  : `${Math.round(usage.snaps * 100)}%`}
+              </b>
+              Offensive snaps
+            </span>
+            {player.position === 'QB' ? (
+              <span>
+                <b>{pts(usage.passAttempts)}</b>Pass attempts / game
+              </span>
+            ) : (
+              <span>
+                <b>{pts(usage.targets)}</b>Targets / game
+              </span>
+            )}
+            {player.position === 'RB' && (
+              <span>
+                <b>{pts(usage.carries)}</b>Carries / game
+              </span>
+            )}
+          </div>
+          <small>
+            {usage.games} most recent observed weeks on this NFL team
+            {usage.through ? ` · through ${usage.through}` : ''}. Missing
+            metrics stay unknown.
+          </small>
+          {!!usage.noAppearance && (
+            <small>
+              {usage.noAppearance} active games without a recorded appearance in
+              this usage window. The scoring estimate uses played appearances,
+              shown separately in game history.
+            </small>
+          )}
+        </>
+      )}
+      {role.sourceUrl && (
+        <a
+          className="text-link"
+          href={role.sourceUrl}
+          target="_blank"
+          rel="noreferrer"
+        >
+          Check NFL depth chart <ArrowUpRight size={13} />
+        </a>
+      )}
+      {role.checkedAt && (
+        <small>
+          Roster and chart checked {new Date(role.checkedAt).toLocaleString()}.
+          Chart publication time is not supplied.
+        </small>
+      )}
+    </div>
+  );
+}
+
 export default function Insights({
   leagues,
   selected,
@@ -131,6 +203,15 @@ export default function Insights({
         .sort((a, b) => (b.projection ?? -999) - (a.projection ?? -999)) ?? [],
     [valid, position, search],
   );
+  const exclusions =
+    valid?.candidates
+      .filter((p) => p.modelExcluded)
+      .sort(
+        (a, b) =>
+          (b.forecast.baselinePoints ?? -999) -
+          (a.forecast.baselinePoints ?? -999),
+      )
+      .slice(0, 8) ?? [];
   if (!active)
     return (
       <div className="panel insight-empty">
@@ -191,10 +272,10 @@ export default function Insights({
           <div className="insight-scoreboard">
             <section className="insight-model-card">
               <div className="eyebrow">SUNDAY DESK MODEL · WEEK {week}</div>
-              <h2>Your scoring changes the picture.</h2>
+              <h2>Opportunity comes before points.</h2>
               <p>
-                Up to eight actual games, rescored for this league. Recent
-                appearances carry more weight.
+                Current depth charts, roster availability and comparable
+                workloads come first. Then we apply your league’s scoring.
               </p>
               <span>
                 <Sparkles size={15} />
@@ -202,7 +283,7 @@ export default function Insights({
                   valid.league.players.filter((p) => p.forecast.points !== null)
                     .length
                 }{' '}
-                / {valid.league.players.length} roster forecasts ready
+                / {valid.league.players.length} forecasts pass the role screen
               </span>
             </section>
             <section className="panel insight-metric">
@@ -265,6 +346,11 @@ export default function Insights({
                       <span>{pick.player.availability}</span>
                     </div>
                     <h3>{pick.player.name}</h3>
+                    <span
+                      className={`role-badge ${pick.player.role?.status ?? 'unknown'}`}
+                    >
+                      {pick.player.role?.label ?? 'Role unverified'}
+                    </span>
                     <div className="insight-player-meta">
                       {pick.player.position} · {pick.player.team} ·{' '}
                       {pick.player.opponent || 'Schedule unconfirmed'}{' '}
@@ -287,6 +373,7 @@ export default function Insights({
                       </div>
                     </div>
                     <p>{pick.reason}</p>
+                    <RoleDetails player={pick.player} />
                     <small>
                       {pick.player.forecast.games} games · observed range{' '}
                       {pts(pick.player.forecast.low)}–
@@ -312,6 +399,28 @@ export default function Insights({
                       : 'No evaluated candidate meets the history, scoring, availability and game-lock checks. Refresh after checking your league.'}
                 </p>
               </div>
+            )}
+            {!!exclusions.length && (
+              <details className="role-exclusions">
+                <summary>Why these players were left off the shortlist</summary>
+                {exclusions.map((p) => (
+                  <article key={p.id}>
+                    <div>
+                      <strong>{p.name}</strong>
+                      <span
+                        className={`role-badge ${p.role?.status ?? 'unknown'}`}
+                      >
+                        {p.role?.label}
+                      </span>
+                      <small>
+                        Historical baseline: {pts(p.forecast.baselinePoints)}{' '}
+                        pts
+                      </small>
+                    </div>
+                    <p>{p.role?.detail}</p>
+                  </article>
+                ))}
+              </details>
             )}
           </section>
           <section className="panel insight-section">
@@ -357,7 +466,8 @@ export default function Insights({
               <TableHeader>
                 <TableRow>
                   <TableHead>Player / game history</TableHead>
-                  <TableHead>Sunday Desk</TableHead>
+                  <TableHead>Current-role model</TableHead>
+                  <TableHead>Historical baseline</TableHead>
                   <TableHead>Provider</TableHead>
                   <TableHead>Difference</TableHead>
                   <TableHead>Observed range</TableHead>
@@ -381,7 +491,17 @@ export default function Insights({
                               {state(p) ? ` · ${state(p)}` : ''}
                             </span>
                           </summary>
+                          <RoleDetails player={p} />
                           <p>{p.forecast.note}</p>
+                          {p.forecast.baselineHistory?.length ? (
+                            <p>
+                              Historical baseline:{' '}
+                              {pts(p.forecast.baselinePoints)} points across{' '}
+                              {p.forecast.baselineHistory.length} games, before
+                              the current-role screen. {p.forecast.games} games
+                              fit the current role.
+                            </p>
+                          ) : null}
                           {p.forecast.history.length > 0 && (
                             <div
                               className="game-history-bars"
@@ -424,11 +544,29 @@ export default function Insights({
                       </TableCell>
                       <TableCell>
                         <strong>{pts(p.projection)}</strong>
+                        <span
+                          className={`role-badge ${p.role?.status ?? 'unknown'}`}
+                        >
+                          {p.role?.label ?? 'Role unverified'}
+                        </span>
+                        {p.projection === null && (
+                          <small className="role-withheld">
+                            {p.modelExcluded
+                              ? 'Excluded from recommendations'
+                              : 'Withheld · insufficient role or workload evidence'}
+                          </small>
+                        )}
                         {unavailable(p) && (
                           <small className="insight-unavailable">
                             Unavailable
                           </small>
                         )}
+                      </TableCell>
+                      <TableCell>
+                        {pts(p.forecast.baselinePoints)}
+                        <small className="role-withheld">
+                          Past production only
+                        </small>
                       </TableCell>
                       <TableCell>{pts(p.providerProjection)}</TableCell>
                       <TableCell>
@@ -441,7 +579,7 @@ export default function Insights({
                           ? '—'
                           : `${pts(p.forecast.low)}–${pts(p.forecast.high)}`}
                       </TableCell>
-                      <TableCell>{p.forecast.games}/8</TableCell>
+                      <TableCell>{p.forecast.games}</TableCell>
                     </TableRow>
                   );
                 })}
@@ -467,9 +605,11 @@ export default function Insights({
                   <small>
                     {a.locked
                       ? 'Locked'
-                      : a.current?.id !== a.recommended?.id
-                        ? `For ${a.current?.name ?? 'empty slot'}`
-                        : 'Keep'}
+                      : a.recommended?.partial
+                        ? 'Verify role / data'
+                        : a.current?.id !== a.recommended?.id
+                          ? `For ${a.current?.name ?? 'empty slot'}`
+                          : 'Keep'}
                   </small>
                 </div>
               ))}
@@ -483,11 +623,34 @@ export default function Insights({
           <details className="panel insight-method">
             <summary>How these projections work</summary>
             <p>
-              {valid.model}. Uses up to eight played games within the previous
-              12 regular-season weeks, stopping before both the selected and
-              current week. Each earlier appearance gets 85% of the weight of
-              the next more recent one. At least three scored games are
-              required.
+              {valid.model}. The historical baseline uses up to eight played
+              games within the previous 12 regular-season weeks. The
+              current-role estimate assesses the latest three same-team
+              appearances together; kickers and team defenses use up to eight.
+              Each earlier appearance gets 85% of the weight of the next more
+              recent one. At least three scored games are required. History
+              stops before the current week, and current roles are only used for
+              this week’s recommendations.
+            </p>
+            <p>
+              Reserve quarterbacks/kickers, players without an NFL team,
+              practice-squad players and unavailable roster statuses do not
+              receive a starting projection. Receivers in separate first-unit
+              depth-chart rows remain starters. Backups are never automatically
+              promoted when someone ahead is injured.
+            </p>
+            <p>
+              Workload checks use the whole three-game window, keeping zero and
+              low-scoring appearances. These are conservative heuristics, not
+              trained playing-time predictions. First-unit averages need 40%
+              offensive snaps, or (when snaps are unavailable) six carries plus
+              targets for RBs, three targets for WRs, or two for TEs. Rotational
+              averages use 15–70% snaps, or 3–16 carries plus targets for RBs
+              and 2–6 targets for receivers. Deep reserves need recorded snap
+              shares above zero and at most 30%. Starting QBs need 15 attempts
+              or 50% snaps. Two recent active games without a recorded
+              appearance pause the estimate. Missing usage stays unknown; no
+              depth multiplier is applied to points.
             </p>
             <p>
               We apply this league’s scoring to each game before averaging,
@@ -498,6 +661,16 @@ export default function Insights({
             </p>
             {valid.warnings.map((w) => (
               <p key={w}>{w}</p>
+            ))}
+            {valid.database?.map((source) => (
+              <p key={source.provider}>
+                {source.provider === 'espn' ? 'ESPN' : 'Sleeper'} stats
+                database: {source.rows.toLocaleString()} weekly records across{' '}
+                {source.players.toLocaleString()} player/team identities. Latest
+                import {new Date(source.updatedAt).toLocaleString()}. Database
+                records are checked against completed regular-season games;
+                Sleeper supplies additional workload statistics where available.
+              </p>
             ))}
             <p>
               History through {valid.historyThrough} · Ownership checked{' '}

@@ -48,6 +48,12 @@ try {
   );
   await admin.query('grant usage on schema sunday_desk to sunday_desk_app');
   await admin.query(
+    await readFile(
+      new URL('../db/postgres/002_nfl_stats.sql', import.meta.url),
+      'utf8',
+    ),
+  );
+  await admin.query(
     'grant select,insert,update,delete on all tables in schema sunday_desk to sunday_desk_app',
   );
   await admin.query(

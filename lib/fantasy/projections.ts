@@ -1,5 +1,6 @@
 import { analyze, isLocked, unavailable } from './analysis.ts';
 import type { League, Player } from './types.ts';
+import type { RoleAssessment } from './roles.ts';
 
 export type GameSample = {
   season: number;
@@ -7,6 +8,14 @@ export type GameSample = {
   points: number;
   partial?: boolean;
   receptions?: number;
+  team?: string;
+  passAttempts?: number;
+  carries?: number;
+  targets?: number;
+  snaps?: number;
+  teamSnaps?: number;
+  played?: boolean;
+  activeWithoutAppearance?: boolean;
 };
 export type Forecast = {
   points: number | null;
@@ -18,8 +27,11 @@ export type Forecast = {
   receptionPoints: number | null;
   history: GameSample[];
   note: string;
+  baselinePoints?: number | null;
+  baselineHistory?: GameSample[];
 };
 export type ProjectedPlayer = Player & {
+  role?: RoleAssessment;
   forecast: Forecast;
   providerProjection: number | null;
   availability?: string;
@@ -40,6 +52,12 @@ export type InsightReport = {
   warnings: string[];
   model: string;
   ownershipVerified: boolean;
+  database?: {
+    provider: string;
+    rows: number;
+    players: number;
+    updatedAt: string;
+  }[];
 };
 const round = (n: number) => Math.round(n * 100) / 100;
 export function historyWeeks(
@@ -72,7 +90,12 @@ export function project(
   const games = samples
     .filter((s) => {
       const key = `${s.season}:${s.week}`;
-      if (!window.has(key) || seen.has(key) || !Number.isFinite(s.points))
+      if (
+        !window.has(key) ||
+        seen.has(key) ||
+        s.played === false ||
+        !Number.isFinite(s.points)
+      )
         return false;
       seen.add(key);
       return true;
@@ -128,11 +151,15 @@ export function project(
 export function applyForecast(
   player: Player,
   forecast: Forecast,
+  role?: RoleAssessment,
 ): ProjectedPlayer {
   return {
     ...player,
     providerProjection: player.projection,
     forecast,
+    role,
+    modelExcluded: role?.excluded,
+    modelExclusionReason: role?.excluded ? role.detail : undefined,
     projection: player.bye ? 0 : forecast.points,
     partial: forecast.points === null,
   };
@@ -164,6 +191,8 @@ export function rankWaivers(
       p.locked === false &&
       p.projection !== null &&
       !p.partial &&
+      (!p.role ||
+        (p.role.verified && !p.role.excluded && p.role.compatibleGames >= 3)) &&
       !(
         p.waiverDate != null &&
         p.kickoff !== null &&
