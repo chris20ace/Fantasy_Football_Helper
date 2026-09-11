@@ -102,15 +102,33 @@ const request = {
 };
 const sender = { id: 'test-extension', frameId: 0, url: appOrigin + '/setup' };
 async function worker({ permission = true, missing = false } = {}) {
-  let listener;
-  const reads = [];
+  let listener, onInstalled, onAction;
+  const reads = [],
+    opened = [];
   const chrome = {
     runtime: {
       id: 'test-extension',
+      onInstalled: {
+        addListener: (fn) => {
+          onInstalled = fn;
+        },
+      },
       onMessage: {
         addListener: (l) => {
           listener = l;
         },
+      },
+    },
+    action: {
+      onClicked: {
+        addListener: (fn) => {
+          onAction = fn;
+        },
+      },
+    },
+    tabs: {
+      create: async (options) => {
+        opened.push(options);
       },
     },
     permissions: { contains: async () => permission },
@@ -127,9 +145,18 @@ async function worker({ permission = true, missing = false } = {}) {
       'utf8',
     )
   ).replace(/^import[^;]+;/, '');
-  vm.runInNewContext(code, { chrome, allowedSender, validRequest, espnAccess });
+  vm.runInNewContext(code, {
+    chrome,
+    allowedSender,
+    validRequest,
+    espnAccess,
+    appOrigin,
+  });
   return {
     reads,
+    opened,
+    onInstalled,
+    onAction,
     listener,
     send: (msg, who) =>
       new Promise((resolve) => {
@@ -154,11 +181,11 @@ void test('the distributed connector rejects other origins, paths, frames and ex
   assert.equal(await w.send({ ...request, requestId: 'bad' }, sender), null);
   assert.equal(w.reads.length, 0);
 });
-void test('the connector reads only two fixed ESPN cookie names after optional permission', async () => {
+void test('the connector reads only two fixed ESPN cookie names after browser permission', async () => {
   const denied = await worker({ permission: false });
   assert.match(
     (await denied.send(request, sender)).error,
-    /enable ESPN access/,
+    /extension settings/,
   );
   assert.equal(denied.reads.length, 0);
   const missing = await worker({ missing: true });
@@ -224,10 +251,26 @@ void test('public connector has no localhost permission or persistent credential
     ),
   );
   assert.equal(manifest.incognito, 'not_allowed');
-  assert.deepEqual(manifest.optional_permissions, ['cookies']);
+  assert.deepEqual(manifest.permissions, ['cookies']);
+  assert.deepEqual(manifest.host_permissions, ['https://fantasy.espn.com/*']);
+  assert.equal(manifest.optional_permissions, undefined);
+  assert.equal(manifest.action.default_popup, undefined);
   assert.deepEqual(manifest.content_scripts[0].matches, [
     appOrigin + '/setup*',
   ]);
   assert.ok(!JSON.stringify(manifest).includes('localhost'));
   assert.ok(!JSON.stringify(manifest).includes('storage'));
+});
+
+void test('install and toolbar open setup without collecting cookies or opening tabs on updates', async () => {
+  const w = await worker();
+  w.onInstalled({ reason: 'update' });
+  assert.equal(w.opened.length, 0);
+  w.onInstalled({ reason: 'install' });
+  w.onAction();
+  assert.equal(w.opened.length, 2);
+  assert.ok(
+    w.opened.every((tab) => tab.url === appOrigin + '/setup' && tab.active),
+  );
+  assert.equal(w.reads.length, 0);
 });

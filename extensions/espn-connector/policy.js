@@ -1,7 +1,7 @@
 export const appOrigin = 'https://fantasy-football-helper-orcin.vercel.app';
 export const espnAccess = {
   permissions: ['cookies'],
-  origins: ['https://*.espn.com/*'],
+  origins: ['https://fantasy.espn.com/*'],
 };
 export function allowedSender(sender, extensionId) {
   if (sender?.id !== extensionId || sender?.frameId !== 0) return false;

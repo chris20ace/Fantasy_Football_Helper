@@ -1,21 +1,28 @@
 # Sunday Desk ESPN Connector
 
-Desktop Chrome and Edge developer preview. Sign-in happens on ESPN. The connector reads only espn_s2 and SWID, with optional browser permission, when the signed-in Sunday Desk setup page requests an import. It never reads a password, changes ESPN cookies, modifies a roster, or writes credentials to extension storage.
+Version 0.2.0. Sign-in happens directly on ESPN. After you choose to import, this connector reads only espn_s2 and SWID cookies applicable to https://fantasy.espn.com/. It never reads a password, changes ESPN cookies or lineups, or writes credentials to extension storage.
 
-## Install
+## Installation
 
-1. Extract the connector ZIP to a permanent folder.
-2. Open chrome://extensions (or edge://extensions), enable Developer mode, and choose Load unpacked. Select this folder, which contains manifest.json.
-3. Open the extension from the toolbar and click Enable ESPN access. Accept the browser permission prompt.
-4. Sign in directly at https://www.espn.com/login/.
-5. Open https://fantasy-football-helper-orcin.vercel.app/setup, reload the page, and choose Import from ESPN. Review your leagues and confirm.
+The Chrome Web Store listing is being prepared. After approval, install from the official listing linked in Sunday Desk setup and confirm the browser prompt. Sunday Desk opens automatically; sign in if needed and choose Find my ESPN teams. If ESPN is not signed in, use the ESPN login link, then import again. Choose leagues and confirm encrypted storage.
 
-Normal public installation needs Chrome Web Store publication; this package is not store-reviewed. Desktop Chrome extensions do not run in Chrome on a phone.
+For manual development installation before store approval:
+
+1. Extract the ZIP to a permanent folder.
+2. Open chrome://extensions or edge://extensions, enable Developer mode, and choose Load unpacked. Select the folder containing manifest.json.
+3. Sunday Desk opens automatically. Find your ESPN teams, choose leagues, and confirm.
+
+ESPN cookie access is requested during installation. There is no extra enable-access step. The toolbar icon opens Sunday Desk setup directly. Updates do not open extra tabs. Chrome or Edge on a computer is required for the connector; a connected dashboard works on phones.
 
 ## Privacy and removal
 
-ESPN session values pass to Sunday Desk only to authenticate the read-only import. Discovery returns a short-lived encrypted preview ticket; plaintext session values are discarded from app state. Confirmation stores the selected account session encrypted, associated only with the authenticated Sunday Desk user, so the dashboard can refresh later. ESPN sessions can expire; repeat the import to reconnect. No analytics or third-party destinations are included.
+Import sends ESPN session values to Sunday Desk over HTTPS to discover your teams. The server returns league details and a short-lived encrypted preview ticket; it does not persist a connection until you confirm. Confirmation stores the selected account session encrypted for future dashboard refreshes. These are authentication cookies and can grant account access; Sunday Desk uses them only to read fantasy leagues.
 
-Disconnect ESPN in Sunday Desk to delete its saved credentials. Remove browser access in the connector popup or uninstall the connector to stop future imports. Removing the extension does not remove an already confirmed server connection.
+Disconnect ESPN in Sunday Desk to delete its saved session and clear the private dashboard cache. Uninstall the extension or restrict its site access using browser extension settings to stop future browser imports. Uninstalling does not delete an already confirmed server connection.
 
-The distributed connector permits only the canonical HTTPS Sunday Desk origin and exact /setup path. Preview aliases and localhost are deliberately excluded. Developers may use the separate local packaging command; never distribute that build.
+Privacy policy: https://fantasy-football-helper-orcin.vercel.app/privacy
+Support: https://github.com/chris20ace/Fantasy_Football_Helper/issues
+
+The public connector permits only the canonical HTTPS Sunday Desk origin and exact /setup path, in a top-level frame. Preview aliases and localhost are excluded. The separate local packaging command generates an isolated development build; never distribute it.
+
+Sunday Desk is independent and is not affiliated with or endorsed by ESPN or Disney.

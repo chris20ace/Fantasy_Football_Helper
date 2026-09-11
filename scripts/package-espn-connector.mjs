@@ -21,22 +21,25 @@ const parts = [],
   index = [];
 let offset = 0;
 const names = (await readdir(source))
-  .filter((n) => /\.(js|json|html|css|md)$/.test(n))
+  .filter((n) => /\.(js|json|html|css|md|png)$/.test(n))
   .sort();
 for (const name of names) {
-  let text = await readFile(path.join(source, name), 'utf8');
-  if (local)
-    text = text
-      .replaceAll(
-        'https://fantasy-football-helper-orcin.vercel.app',
-        'http://localhost:3000',
-      )
-      .replace(
-        'Sunday Desk · ESPN Connector',
-        'Sunday Desk · LOCAL DEVELOPMENT ONLY',
-      );
-  const data = Buffer.from(text),
-    label = Buffer.from(name),
+  let data = await readFile(path.join(source, name));
+  if (local && !name.endsWith('.png')) {
+    data = Buffer.from(
+      data
+        .toString('utf8')
+        .replaceAll(
+          'https://fantasy-football-helper-orcin.vercel.app',
+          'http://localhost:3000',
+        )
+        .replace(
+          'Sunday Desk ESPN Connector',
+          'Sunday Desk · LOCAL DEVELOPMENT ONLY',
+        ),
+    );
+  }
+  const label = Buffer.from(name),
     crc = crc32(data);
   if (local) await writeFile(path.join(output, name), data);
   const header = Buffer.alloc(30);

@@ -1,4 +1,9 @@
-import { allowedSender, validRequest, espnAccess } from './policy.js';
+import {
+  allowedSender,
+  validRequest,
+  espnAccess,
+  appOrigin,
+} from './policy.js';
 chrome.runtime.onMessage.addListener((message, sender, respond) => {
   if (!allowedSender(sender, chrome.runtime.id) || !validRequest(message))
     return false;
@@ -7,7 +12,7 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
       if (!(await chrome.permissions.contains(espnAccess))) {
         respond({
           error:
-            'Open the Sunday Desk extension from your browser toolbar and enable ESPN access first.',
+            'Allow this connector to access fantasy.espn.com in your browser extension settings, then try again.',
         });
         return;
       }
@@ -30,9 +35,17 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
     } catch {
       respond({
         error:
-          'ESPN access was unavailable. Open the extension and enable access again.',
+          'ESPN access was unavailable. Check this connector’s site access in your browser extension settings.',
       });
     }
   })();
   return true;
 });
+
+function openSetup() {
+  void chrome.tabs.create({ url: appOrigin + '/setup', active: true });
+}
+chrome.runtime.onInstalled.addListener(({ reason }) => {
+  if (reason === 'install') openSetup();
+});
+chrome.action.onClicked.addListener(openSetup);

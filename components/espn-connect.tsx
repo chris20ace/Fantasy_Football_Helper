@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import type { ConnectedLeague, PublicConnection } from '@/lib/accounts/types';
+import { connectorRelease } from '@/lib/accounts/connector-release';
 type Preview = { ticket: string; leagues: ConnectedLeague[] };
 type Session = { s2: string; swid: string };
 export default function EspnConnect({
@@ -108,7 +109,7 @@ export default function EspnConnect({
         cleanup();
         reject(
           new Error(
-            'Install and enable the desktop connector, then reload this page. It works in desktop Chrome or Edge.',
+            'Install the connector in desktop Chrome or Edge. It will open a fresh setup page automatically.',
           ),
         );
       }, 6000);
@@ -276,79 +277,129 @@ export default function EspnConnect({
           <div className="espn-shortcut">
             <div className="espn-shortcut-title">
               <Monitor size={19} />
-              <strong>Import from your browser</strong>
-              <span>{installed ? 'Connector ready' : 'Desktop'}</span>
+              <strong>
+                {installed
+                  ? 'Your connector is ready'
+                  : 'Connect ESPN in a few clicks'}
+              </strong>
+              <span>{installed ? 'Ready' : 'Desktop'}</span>
             </div>
-            <p>
-              Sign in on ESPN, then bring your teams here. No league IDs or
-              cookie copying.
-            </p>
-            <a
-              className="espn-login-link"
-              href="https://www.espn.com/login/"
-              target="_blank"
-              rel="noreferrer"
-            >
-              1. Sign in to ESPN <ExternalLink size={14} />
-            </a>
-            <Button
-              type="button"
-              disabled={disabled}
-              className="connect-submit"
-              onClick={() => void discover()}
-            >
-              {phase === 'discover'
-                ? 'Finding your teams…'
-                : '2. Import from ESPN'}
-              <ArrowRight size={16} />
-            </Button>
-            <small>
-              Import reads your ESPN session to find your teams. You will review
-              your leagues before saving the connection.
-            </small>
+            {installed ? (
+              <>
+                <p>
+                  Already signed in to ESPN in this browser? Your teams are one
+                  click away.
+                </p>
+                <Button
+                  type="button"
+                  disabled={disabled}
+                  className="connect-submit"
+                  onClick={() => void discover()}
+                >
+                  {phase === 'discover'
+                    ? 'Finding your teams…'
+                    : 'Find my ESPN teams'}
+                  <ArrowRight size={16} />
+                </Button>
+                <small>
+                  Import sends your ESPN session cookies to Sunday Desk to find
+                  your leagues. You will choose leagues and confirm before we
+                  save the session encrypted for future refreshes.
+                </small>
+                <a
+                  className="espn-signin-secondary"
+                  href="https://www.espn.com/login/"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Need to sign in to ESPN? <ExternalLink size={13} />
+                </a>
+              </>
+            ) : (
+              <>
+                <p>
+                  Install once. Sunday Desk opens automatically, ready to find
+                  your teams. No cookie copying or league IDs.
+                </p>
+                {connectorRelease.status === 'published' &&
+                connectorRelease.storeUrl ? (
+                  <a
+                    className="connector-store-button"
+                    href={connectorRelease.storeUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Install ESPN Connector <ExternalLink size={16} />
+                  </a>
+                ) : (
+                  <div className="connector-store-pending">
+                    <strong>
+                      {connectorRelease.status === 'in-review'
+                        ? 'Browser-store approval pending'
+                        : 'Browser-store installation is being prepared'}
+                    </strong>
+                    <span>
+                      The simple install button will appear once the store
+                      listing is approved. Manual setup is available below in
+                      the meantime.
+                    </span>
+                  </div>
+                )}
+                <div className="connector-steps">
+                  <span>
+                    <b>1</b> Install connector
+                  </span>
+                  <span>
+                    <b>2</b> Find your teams
+                  </span>
+                  <span>
+                    <b>3</b> Choose & connect
+                  </span>
+                </div>
+              </>
+            )}
           </div>
-          <details
-            className="connection-help connector-install"
-            open={installed ? undefined : true}
-          >
-            <summary>
-              One-time desktop connector setup <ChevronDown size={15} />
-            </summary>
-            <p>
-              Use Chrome or Edge on a computer. This developer preview is
-              installed manually; a browser-store release will make installation
-              simpler.
-            </p>
-            <a
-              className="connector-download"
-              href="/downloads/sunday-desk-espn-connector.zip"
-              download
-            >
-              <Download size={16} />
-              Download connector
-            </a>
-            <ol>
-              <li>Extract the ZIP to a folder you will keep.</li>
-              <li>
-                Open <code>chrome://extensions</code> or{' '}
-                <code>edge://extensions</code>. Turn on Developer mode, choose{' '}
-                <strong>Load unpacked</strong>, and select the extracted folder
-                containing <code>manifest.json</code>.
-              </li>
-              <li>
-                Open Sunday Desk from the browser extensions menu and choose{' '}
-                <strong>Enable ESPN access</strong>.
-              </li>
-              <li>
-                Reload this setup page, sign in to ESPN in the same browser,
-                then choose <strong>Import from ESPN</strong>.
-              </li>
-            </ol>
-            <p className="connector-mobile">
-              <Monitor size={16} /> On a phone? Complete the connection once on
-              a computer. Your connected dashboard then works on your phone.
-            </p>
-          </details>
+          <p className="connector-mobile">
+            <Monitor size={16} /> Connect once in Chrome or Edge on a computer.
+            Your dashboard then works on your phone.
+          </p>
+          {!installed && (
+            <details className="connection-help connector-install">
+              <summary>
+                Manual installation while the store listing is pending{' '}
+                <ChevronDown size={15} />
+              </summary>
+              <p>
+                This alternative uses Chrome or Edge Developer mode. Normal
+                browser-store installation will replace these steps after
+                approval.
+              </p>
+              <a
+                className="connector-download"
+                href="/downloads/sunday-desk-espn-connector.zip"
+                download
+              >
+                <Download size={16} /> Download developer package
+              </a>
+              <ol>
+                <li>Extract the ZIP to a folder you will keep.</li>
+                <li>
+                  Open <code>chrome://extensions</code> or{' '}
+                  <code>edge://extensions</code>, turn on Developer mode, and
+                  choose <strong>Load unpacked</strong>. Select the extracted
+                  folder containing <code>manifest.json</code>.
+                </li>
+                <li>
+                  Sunday Desk opens automatically. Sign in if needed, then
+                  choose <strong>Find my ESPN teams</strong>.
+                </li>
+              </ol>
+              <p>
+                Already installed an older connector? Replace its files with
+                this version and reload it in your browser extension settings.
+              </p>
+            </details>
+          )}
           <details className="connection-help espn-manual">
             <summary>
               Advanced: connect manually <ChevronDown size={15} />
@@ -416,7 +467,10 @@ export default function EspnConnect({
             </form>
           </details>
           <p className="espn-private">
-            <ShieldCheck size={15} /> Your ESPN password stays with ESPN.
+            <ShieldCheck size={15} /> Your ESPN password stays with ESPN.{' '}
+            <a href="/privacy" target="_blank" rel="noreferrer">
+              Privacy policy
+            </a>
           </p>
         </>
       )}

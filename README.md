@@ -33,11 +33,13 @@ The setup page opens ESPN in its own tab, imports the user's existing session th
 
 This is not an embedded ESPN OAuth login. Cross-origin iframe isolation prevents a normal website from reading ESPN's login or cookies. No ESPN password is requested or captured.
 
-The developer-preview extension source is in extensions/espn-connector, with a reproducible download in public/downloads. Run pnpm connector:package after changing the extension. Normal public distribution requires a browser-store release; the ZIP requires desktop Chrome/Edge Developer mode and Load unpacked. Phone browsers cannot use this desktop connector; users can connect once on a computer and access their dashboard on mobile afterward. The public connector allows only the canonical HTTPS origin, exact /setup path, top-level frame and its own extension ID. Optional ESPN access is requested through its popup. It has no persistent storage or analytics.
+The developer-preview extension source is in extensions/espn-connector, with a reproducible download in public/downloads. Run pnpm connector:package after changing the extension. Normal public distribution requires a browser-store release; the ZIP requires desktop Chrome/Edge Developer mode and Load unpacked. Phone browsers cannot use this desktop connector; users can connect once on a computer and access their dashboard on mobile afterward. The public connector allows only the canonical HTTPS origin, exact /setup path, top-level frame and its own extension ID. Required cookie access is requested during installation and limited to https://fantasy.espn.com/*. Installation opens setup automatically; the toolbar icon opens setup directly. It has no persistent storage or analytics.
 
 For isolated local development, run node scripts/package-espn-connector.mjs --local and load work/espn-connector-local. That build permits localhost and must never be distributed publicly.
 
 ESPN discovery uses the fan-profile endpoint employed by [ESPN's web client](https://cdn1.espn.net/kona/5a90d30cd38d-1.490/_next/static/commons/main-82d208d52efd2b467c49.js): GET https://fan.api.espn.com/apis/v2/fans/{encodedSWID}. The parser reads preferences[].metaData.entry for preference types 9/10, football gameId 1 and the current season. It extracts groups[0].groupId, then independently verifies team ownership in each league. This undocumented compatibility integration may change; the advanced manual form supports league IDs as a fallback.
+
+Store submission materials, icons, and a real screenshot are in store-assets. The public privacy policy is /privacy. lib/accounts/connector-release.ts controls the install link; keep it unavailable until the store listing is approved and verified installable.
 
 ## What you can do
 

@@ -1,19 +1,22 @@
 {
   "manifest_version": 3,
-  "name": "Sunday Desk · ESPN Connector",
-  "version": "0.1.0",
-  "description": "Connect your own ESPN Fantasy leagues to Sunday Desk after signing in directly on ESPN.",
+  "name": "Sunday Desk ESPN Connector",
+  "version": "0.2.0",
+  "description": "Import your ESPN Fantasy Football teams into your private Sunday Desk dashboard. Choose your leagues and connect in a few clicks.",
   "incognito": "not_allowed",
   "action": {
-    "default_popup": "popup.html",
-    "default_title": "Sunday Desk ESPN Connector"
+    "default_title": "Open Sunday Desk",
+    "default_icon": {
+      "16": "icon-16.png",
+      "32": "icon-32.png",
+      "48": "icon-48.png",
+      "128": "icon-128.png"
+    }
   },
   "background": {
     "service_worker": "background.js",
     "type": "module"
   },
-  "optional_permissions": ["cookies"],
-  "optional_host_permissions": ["https://*.espn.com/*"],
   "content_scripts": [
     {
       "matches": ["https://fantasy-football-helper-orcin.vercel.app/setup*"],
@@ -21,5 +24,14 @@
       "all_frames": false,
       "run_at": "document_idle"
     }
-  ]
+  ],
+  "permissions": ["cookies"],
+  "host_permissions": ["https://fantasy.espn.com/*"],
+  "icons": {
+    "16": "icon-16.png",
+    "32": "icon-32.png",
+    "48": "icon-48.png",
+    "128": "icon-128.png"
+  },
+  "homepage_url": "https://fantasy-football-helper-orcin.vercel.app/setup"
 }
