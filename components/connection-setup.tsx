@@ -92,9 +92,13 @@ export default function ConnectionSetup({
             </p>
           </div>
           {count > 0 && (
-            <Link prefetch={false} className="setup-dashboard" href="/">
+            <Button
+              className="setup-dashboard"
+              type="button"
+              onClick={() => window.location.assign('/')}
+            >
               Open dashboard <ArrowRight size={18} />
-            </Link>
+            </Button>
           )}
         </div>
         <div className="setup-progress">

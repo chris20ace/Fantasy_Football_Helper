@@ -6,6 +6,18 @@ A fantasy football workspace where each person signs in, connects their Sleeper 
 
 **Existing Sites deployment:** https://sunday-desk-bam6i.aceccb2020.chatgpt.site
 
+## Independent projections and waiver insights
+
+The **Insights & waivers** tab builds Sunday Desk forecasts separately from provider projections. Select a connected league and NFL week to compare your players, inspect their historical scores and reception scoring contribution, view a model-based lineup, and research available pickups.
+
+The v1 model scores up to eight actual appearances from the previous 12 regular-season weeks using the selected league's rules. Earlier appearances receive 85% of the weight of the next more recent appearance. History stops strictly before both the selected week and the provider's current week; season aggregates, DNPs and the ongoing week's partial stats are excluded. Three games are required. ESPN uses native numeric stats and position-specific scoring overrides; Sleeper uses native statistical keys and its scoring settings. Bonuses and defensive bands are scored game by game before averaging. The displayed range describes past observations, not a calibrated forecast interval. Missing history or unsupported scoring never becomes an invented zero projection.
+
+Waiver pools are verified against all league rosters, including reserves/taxi. ESPN additionally requires a league-local free-agent or waiver status. The candidate search is bounded and disclosed in the interface: ESPN's first 200 available players by ownership, or Sleeper's historical/provider leaders per position. Up to 24 eligible candidates receive lineup comparisons. Numerical gain is available only with complete roster forecasts and at most 10 starting slots. It compares against the already-optimized current roster and assumes space can be made without dropping those starters; it is not an executable add/drop recommendation. Game locks, injury availability, stale data, AutoSubs uncertainty and claims clearing after kickoff are respected. Users check roster limits, drops, waiver priority and FAAB in their provider.
+
+The model is a transparent historical baseline, not a trained or accuracy-calibrated prediction system. Opponent strength, role/depth-chart changes, weather and injury recovery are not modeled. Provider projections remain available for comparison and in the original Lineup lab. Public historical statistics are cached separately from user-scoped, connection-revision-bound league reports. The authenticated `/api/insights` endpoint verifies connected-league membership before reading private data.
+
+Sources: [Sleeper API](https://docs.sleeper.com/), supplemental Sleeper `/stats/nfl/{season}/{week}` feeds, and [ESPN's first-party stat configuration](https://fantasy.espn.com/football/players/add) / league player API. Supplemental provider endpoints can change; failed scans return an explicit unavailable state. `pnpm test` covers scoring-dependent waiver ordering, nonlinear bonuses, position overrides, history cutoffs, missing samples, FLEX assignments, existing-bench gains and ownership/lock guards.
+
 ## Accounts and deployment
 
 The production app uses Better Auth for email/password accounts and Supabase PostgreSQL for sessions, connections, notes, and cache storage. Users sign up at /login and connect accounts at /setup. Sleeper uses the public read API by username; private ESPN leagues can be imported from an existing browser session with the optional desktop connector, or connected manually. ESPN credentials are encrypted with AES-256-GCM and bound to the user ID. No provider lineups are changed by this app.

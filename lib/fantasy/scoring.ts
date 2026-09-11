@@ -1,4 +1,38 @@
 type Stats = Record<string, number>;
+// ESPN's first-party statSettings identifies these rare, non-derived scoring counts.
+// Missing counts in a played game's sparse record contribute zero in ESPN's scorer.
+// 63: offensive fumble-recovery TD; 209: one-point safety (not the ordinary safety stat).
+const sparseESPNCounts = new Set(['63', '209']);
+export function scoreESPNGame(
+  stats: Stats,
+  rules: {
+    statId: number;
+    points: number;
+    pointsOverrides?: Record<string, number>;
+  }[],
+  position: number,
+  covered: Set<string>,
+) {
+  let points = 0;
+  for (const rule of rules) {
+    const weight = rule.pointsOverrides?.[position] ?? rule.points;
+    if (!Number.isFinite(weight) || !Number.isInteger(rule.statId))
+      return { projection: null, partial: true };
+    if (weight === 0) continue;
+    if (
+      !covered.has(String(rule.statId)) &&
+      !sparseESPNCounts.has(String(rule.statId))
+    )
+      return { projection: null, partial: true };
+    const value = stats[String(rule.statId)] ?? 0;
+    if (!Number.isFinite(value)) return { projection: null, partial: true };
+    points += value * weight;
+  }
+  return {
+    projection: rules.length ? Math.round(points * 100) / 100 : null,
+    partial: !rules.length,
+  };
+}
 const offense = new Set([
   'pass_yd',
   'pass_td',

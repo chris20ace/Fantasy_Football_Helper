@@ -1,6 +1,7 @@
 'use client';
 import SetupLink from './setup-link';
 import SignOut from './sign-out';
+import Insights from './insights';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowRight,
@@ -62,7 +63,7 @@ import {
   unavailable,
 } from '@/lib/fantasy/analysis';
 
-type View = 'overview' | 'lab' | 'portfolio' | 'sources';
+type View = 'overview' | 'lab' | 'insights' | 'portfolio' | 'sources';
 type Preferences = {
   revision: number;
   notes: Record<string, string>;
@@ -71,6 +72,7 @@ type Preferences = {
 const menu = [
   { id: 'overview', label: 'Weekly overview', icon: LayoutDashboard },
   { id: 'lab', label: 'Lineup lab', icon: Target },
+  { id: 'insights', label: 'Insights & waivers', icon: Zap },
   { id: 'portfolio', label: 'Player portfolio', icon: Layers3 },
   { id: 'sources', label: 'Connections & guide', icon: Radio },
 ] as const;
@@ -459,7 +461,9 @@ export default function FantasyDashboard({
                     ? 'Find your strongest lineup.'
                     : view === 'portfolio'
                       ? 'One player. Many stakes.'
-                      : 'Your connected workspace.'}
+                      : view === 'insights'
+                        ? 'Find your next advantage.'
+                        : 'Your connected workspace.'}
               </h1>
               <p>
                 {view === 'overview'
@@ -468,7 +472,9 @@ export default function FantasyDashboard({
                     ? 'Compare every eligible combination, with game locks respected.'
                     : view === 'portfolio'
                       ? 'Understand your exposure before every kickoff.'
-                      : 'Know where your data comes from and when to refresh it.'}
+                      : view === 'insights'
+                        ? 'Independent projections and waiver ideas, tailored to each league.'
+                        : 'Know where your data comes from and when to refresh it.'}
               </p>
             </div>
             <div className="heading-actions">
@@ -851,6 +857,17 @@ export default function FantasyDashboard({
                       blockAdvice={!!error}
                     />
                   )}
+                </TabsContent>
+                <TabsContent value="insights">
+                  <Insights
+                    leagues={leagues}
+                    selected={selected}
+                    onSelect={setSelected}
+                    week={selectedWeek}
+                    now={now}
+                    blocked={!!error}
+                    refreshKey={data?.fetchedAt ?? ''}
+                  />
                 </TabsContent>
                 <TabsContent value="portfolio">
                   <div className="portfolio-intro">
@@ -1773,9 +1790,9 @@ function Connections({
           update the saved session.
         </p>
         <p className="tiny">
-          The dashboard recommends combinations from players already on your
-          roster. It does not submit lineup changes, claim waivers, or execute
-          trades.
+          Insights & waivers creates independent, league-scored estimates from
+          past games and checks unrostered candidates. It does not submit lineup
+          changes, claim waivers, or execute trades.
         </p>
         <a
           className="text-link"

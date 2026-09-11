@@ -14,11 +14,18 @@ const normalize = (v: unknown) =>
   (typeof v === 'string' ? v : '').replace(/[{}]/g, '').toLowerCase();
 const abbreviation = (v: string) =>
   ({ WSH: 'WAS', JAC: 'JAX', LA: 'LAR' })[v] ?? v;
-async function json(url: string, cookie?: string): Promise<any> {
+export async function json(
+  url: string,
+  cookie?: string,
+  filter?: unknown,
+): Promise<any> {
   const r = await fetch(url, {
-    headers: cookie
-      ? { Cookie: cookie, Accept: 'application/json' }
-      : { Accept: 'application/json' },
+    headers: {
+      Accept: 'application/json',
+      ...(cookie ? { Cookie: cookie } : {}),
+      ...(filter ? { 'X-Fantasy-Filter': JSON.stringify(filter) } : {}),
+    },
+    redirect: 'error',
     signal: AbortSignal.timeout(18000),
   });
   if (!r.ok)
@@ -34,7 +41,7 @@ async function json(url: string, cookie?: string): Promise<any> {
     );
   return r.json();
 }
-async function cached(
+export async function cached(
   key: string,
   ttl: number,
   fn: () => Promise<any>,
@@ -48,7 +55,7 @@ async function cached(
 }
 
 // The full player catalog is streamed one entry at a time to stay within Workers memory limits.
-async function catalog(
+export async function catalog(
   ids: Set<string>,
   force = false,
   namespace = 'public',
@@ -115,7 +122,7 @@ async function catalog(
   return result;
 }
 
-function gameInfo(team: string, proTeams: Raw[], week: number) {
+export function gameInfo(team: string, proTeams: Raw[], week: number) {
   const pro = proTeams.find(
     (t) => abbreviation(t.abbrev) === abbreviation(team),
   );
@@ -169,13 +176,12 @@ const positions: Record<string, string> = {
   '4': 'TE',
   '5': 'K',
   '16': 'DEF',
-  '6': 'DT',
-  '7': 'DE',
-  '8': 'LB',
-  '9': 'CB',
-  '10': 'S',
-  '11': 'DL',
-  '12': 'DB',
+  '9': 'DT',
+  '10': 'DE',
+  '11': 'LB',
+  '12': 'CB',
+  '13': 'S',
+  '17': 'EDR',
 };
 function makeSlots(counts: Raw): Slot[] {
   return Object.entries(counts)
@@ -188,7 +194,7 @@ function makeSlots(counts: Raw): Slot[] {
       })),
     );
 }
-function espnPlayer(
+export function espnPlayer(
   entry: Raw,
   proTeams: Raw[],
   week: number,
@@ -237,7 +243,7 @@ function espnPlayer(
     taxi: false,
   };
 }
-function fromESPN(
+export function fromESPN(
   raw: Raw,
   swid: string,
   proTeams: Raw[],
@@ -345,7 +351,7 @@ function fromESPN(
   };
 }
 
-const sleeperEligible = (positions: string[], key: string) =>
+export const sleeperEligible = (positions: string[], key: string) =>
   key === 'FLEX'
     ? positions.some((p) => ['RB', 'WR', 'TE'].includes(p))
     : key === 'SUPER_FLEX'
@@ -357,7 +363,7 @@ const sleeperEligible = (positions: string[], key: string) =>
           : key === 'IDP_FLEX'
             ? positions.some((p) => ['DL', 'LB', 'DB'].includes(p))
             : positions.includes(key);
-function fromSleeper(
+export function fromSleeper(
   raw: Raw,
   rosters: Raw[],
   matches: Raw[],
