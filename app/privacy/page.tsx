@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import SetupLink from '@/components/setup-link';
 import { Zap } from 'lucide-react';
 export const metadata = {
   title: 'Privacy | Sunday Desk',
@@ -13,9 +14,7 @@ export default function PrivacyPage() {
           <Zap />
           Sunday<span>Desk</span>
         </Link>
-        <Link prefetch={false} href="/setup">
-          Back to setup
-        </Link>
+        <SetupLink>Back to setup</SetupLink>
       </header>
       <main className="privacy-content">
         <div className="eyebrow">SUNDAY DESK & ESPN CONNECTOR</div>

@@ -458,6 +458,11 @@ export default function EspnConnect({
                   placeholder="Leave blank to discover your teams"
                 />
               </label>
+              <p className="muted">
+                Finding leagues sends these ESPN session values to Sunday Desk.
+                Choose your leagues and confirm before we save the session
+                encrypted for future refreshes.
+              </p>
               <Button type="submit" disabled={disabled}>
                 {phase === 'discover'
                   ? 'Finding your teams…'
