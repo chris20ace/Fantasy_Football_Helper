@@ -1,24 +1,26 @@
 import { headers } from 'next/headers';
-// Vercel Authentication must protect ALL deployments, including production.
-// Trust that single-owner hosting boundary, never caller-supplied ChatGPT headers.
-// A fresh clone fails closed until explicitly configured.
+import { redirect } from 'next/navigation';
+import { getAuth } from '../accounts/auth.ts';
 export async function getChatGPTUser() {
-  await headers(); // Keep the page request-scoped and prevent prerendering.
-  if (
-    process.env.VERCEL !== '1' ||
-    process.env.DASHBOARD_AUTH_MODE !== 'vercel-protection'
-  )
-    return null;
+  const session = await getAuth().api.getSession({ headers: await headers() });
+  if (!session) return null;
   return {
-    userId: 'owner',
-    displayName: 'Sunday Desk',
-    email: '',
-    fullName: null,
+    userId: session.user.id,
+    displayName: session.user.name,
+    email: session.user.email,
+    fullName: session.user.name,
   };
 }
-export async function requireChatGPTUser(_returnTo: string) {
+export async function requireChatGPTUser(returnTo: string) {
   const user = await getChatGPTUser();
   if (!user)
-    throw new Error('Private dashboard authentication is not configured.');
+    redirect(
+      '/login?next=' +
+        encodeURIComponent(
+          returnTo.startsWith('/') && !returnTo.startsWith('//')
+            ? returnTo
+            : '/',
+        ),
+    );
   return user;
 }

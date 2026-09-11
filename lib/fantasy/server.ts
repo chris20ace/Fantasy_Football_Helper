@@ -1,31 +1,13 @@
 /* Upstream providers return polymorphic JSON. This boundary normalizes it into strict League/Player types. */
 /* oxlint-disable typescript/no-explicit-any */
 import { scoreSleeper } from './scoring';
-import { setting, readCache, saveCache } from '#dashboard-runtime';
+import { loadWorkspace, readCache, saveCache } from '#dashboard-runtime';
 export { getPreferences, putPreferences } from '#dashboard-runtime';
 import type { Dashboard, League, Player, Slot, Standing } from './types';
 
 type Raw = Record<string, any>;
 const SLEEPER = 'https://api.sleeper.app';
 const ESPN = 'https://lm-api-reads.fantasy.espn.com/apis/v3/games/ffl/seasons';
-const USER = '734846853182521344';
-const configured = [
-  { id: '626895972', platform: 'espn', name: 'IU' },
-  { id: '1360778906', platform: 'espn', name: 'BTOWNS FINEST' },
-  { id: '103664', platform: 'espn', name: 'Charlie Ruff Memorial League' },
-  { id: '1399588599548145664', platform: 'sleeper', name: 'big dick cig' },
-  {
-    id: '1389374537983889408',
-    platform: 'sleeper',
-    name: 'Charlie Ruff Memorial League',
-  },
-  { id: '1384960790922039296', platform: 'sleeper', name: 'Helmet Heads' },
-  {
-    id: '1352065380138377216',
-    platform: 'sleeper',
-    name: 'Steph is Lebrons Dad',
-  },
-] as const;
 const numeric = (n: unknown): number | null =>
   typeof n === 'number' && Number.isFinite(n) ? n : null;
 const normalize = (v: unknown) =>
@@ -69,8 +51,10 @@ async function cached(
 async function catalog(
   ids: Set<string>,
   force = false,
+  namespace = 'public',
+  owner: string | null = null,
 ): Promise<Record<string, Raw>> {
-  const existing = await readCache('player-catalog');
+  const existing = await readCache(namespace + ':player-catalog', owner);
   if (existing && !force && Date.now() - existing.updated < 180000) {
     const v = JSON.parse(existing.value);
     if ([...ids].every((id) => v[id])) return v;
@@ -127,7 +111,7 @@ async function catalog(
       else if (ch === '}' || ch === ']') depth--;
     }
   }
-  await saveCache('player-catalog', result);
+  await saveCache(namespace + ':player-catalog', result, owner);
   return result;
 }
 
@@ -384,9 +368,12 @@ function fromSleeper(
   week: number,
   season: number,
   currentWeek: number,
+  sleeperUserId: string,
 ): League {
   const roster = rosters.find(
-    (r) => r.owner_id === USER || (r.co_owners ?? []).includes(USER),
+    (r) =>
+      r.owner_id === sleeperUserId ||
+      (r.co_owners ?? []).includes(sleeperUserId),
   );
   if (!roster)
     throw new Error('Sleeper roster membership could not be matched.');
@@ -530,9 +517,29 @@ function fromSleeper(
 }
 
 export async function getDashboard(
+  userId: string,
   weekInput: number | undefined,
   refresh = false,
 ): Promise<Dashboard> {
+  const workspace = await loadWorkspace(userId);
+  const configured = workspace.connections.flatMap((c) =>
+    c.leagues.map((l) => ({ ...l, platform: c.provider })),
+  );
+  const sleeperUserId =
+    workspace.connections.find((c) => c.provider === 'sleeper')?.accountId ??
+    '';
+  const espn = workspace.connections.find((c) => c.provider === 'espn');
+  const namespace =
+    'user:' + encodeURIComponent(userId) + ':' + workspace.revision;
+  if (!configured.length)
+    return {
+      season: new Date().getFullYear(),
+      week: weekInput ?? 1,
+      currentWeek: 1,
+      fetchedAt: new Date().toISOString(),
+      leagues: [],
+      warnings: [],
+    };
   const warnings: string[] = [];
   let degraded = false;
   const shared = async (
@@ -561,7 +568,10 @@ export async function getDashboard(
       Math.min(18, Number(state.display_week ?? state.week) || 1),
     ),
     week = weekInput ?? currentWeek;
-  const allCache = await readCache(`dashboard:${season}:${week}`);
+  const allCache = await readCache(
+    `${namespace}:dashboard:${season}:${week}`,
+    userId,
+  );
   if (
     allCache &&
     !degraded &&
@@ -572,31 +582,39 @@ export async function getDashboard(
     json(`${ESPN}/${season}?view=proTeamSchedules_wl`),
   );
   const proTeams = proData.settings?.proTeams ?? [];
-  const s2 = setting('ESPN_S2'),
-    swid = setting('ESPN_SWID') ?? '',
+  const s2 = espn?.credentials?.s2,
+    swid = espn?.credentials?.swid ?? '',
     cookie = s2 && swid ? `espn_s2=${s2}; SWID=${swid}` : undefined;
   const raw = await Promise.allSettled(
     configured.map(async (t) =>
-      t.platform === 'espn'
-        ? !cookie
-          ? Promise.reject(new Error('ESPN needs a session connection.'))
-          : json(
-              `${ESPN}/${season}/segments/0/leagues/${t.id}?view=mSettings&view=mTeam&view=mRoster&view=mMatchupScore&view=mStandings&view=mDraftDetail&scoringPeriodId=${week}`,
-              cookie,
-            )
-        : Promise.all([
-            json(`${SLEEPER}/v1/league/${t.id}`),
-            json(`${SLEEPER}/v1/league/${t.id}/rosters`),
-            json(`${SLEEPER}/v1/league/${t.id}/matchups/${week}`),
-            json(`${SLEEPER}/v1/league/${t.id}/users`),
-          ]),
+      t.season !== season
+        ? Promise.reject(
+            new Error(
+              'Reconnect this account to import leagues for the current season.',
+            ),
+          )
+        : t.platform === 'espn'
+          ? !cookie
+            ? Promise.reject(new Error('ESPN needs a session connection.'))
+            : json(
+                `${ESPN}/${season}/segments/0/leagues/${t.id}?view=mSettings&view=mTeam&view=mRoster&view=mMatchupScore&view=mStandings&view=mDraftDetail&scoringPeriodId=${week}`,
+                cookie,
+              )
+          : Promise.all([
+              json(`${SLEEPER}/v1/league/${t.id}`),
+              json(`${SLEEPER}/v1/league/${t.id}/rosters`),
+              json(`${SLEEPER}/v1/league/${t.id}/matchups/${week}`),
+              json(`${SLEEPER}/v1/league/${t.id}/users`),
+            ]),
     ),
   );
   const ids = new Set<string>();
   raw.forEach((r, i) => {
     if (r.status === 'fulfilled' && configured[i].platform === 'sleeper') {
       const roster = r.value[1].find(
-        (r: Raw) => r.owner_id === USER || (r.co_owners ?? []).includes(USER),
+        (r: Raw) =>
+          r.owner_id === sleeperUserId ||
+          (r.co_owners ?? []).includes(sleeperUserId),
       );
       for (const id of roster?.players ?? []) if (id !== '0') ids.add(id);
     }
@@ -604,10 +622,12 @@ export async function getDashboard(
   let details: Record<string, Raw> = {},
     projections: Raw[] = [];
   const sources = await Promise.allSettled([
-    catalog(ids, refresh),
-    json(
-      `${SLEEPER}/projections/nfl/${season}/${week}?season_type=regular&position[]=QB&position[]=RB&position[]=WR&position[]=TE&position[]=K&position[]=DEF`,
-    ).then((rows: Raw[]) => rows.filter((p) => ids.has(p.player_id))),
+    ids.size ? catalog(ids, refresh, namespace, userId) : Promise.resolve({}),
+    ids.size
+      ? json(
+          `${SLEEPER}/projections/nfl/${season}/${week}?season_type=regular&position[]=QB&position[]=RB&position[]=WR&position[]=TE&position[]=K&position[]=DEF`,
+        ).then((rows: Raw[]) => rows.filter((p) => ids.has(p.player_id)))
+      : Promise.resolve([]),
   ]);
   if (sources[0].status === 'fulfilled') details = sources[0].value;
   else
@@ -622,7 +642,7 @@ export async function getDashboard(
   const leagues = await Promise.all(
     raw.map(async (r, i) => {
       const target = configured[i],
-        key = `league:${season}:${week}:${target.platform}:${target.id}`;
+        key = `${namespace}:league:${season}:${week}:${target.platform}:${target.id}`;
       try {
         if (r.status === 'rejected') throw r.reason;
         const league =
@@ -639,6 +659,7 @@ export async function getDashboard(
                 week,
                 season,
                 currentWeek,
+                sleeperUserId,
               );
         if (target.platform === 'sleeper' && sources[0].status === 'rejected') {
           league.warnings.push(
@@ -652,10 +673,10 @@ export async function getDashboard(
           league.stale = true;
           league.warnings.push(...warnings);
         }
-        await saveCache(key, league);
+        await saveCache(key, league, userId);
         return league;
       } catch (e) {
-        const old = await readCache(key),
+        const old = await readCache(key, userId),
           message =
             e instanceof Error ? e.message : 'This league could not refresh.';
         if (old)
@@ -701,6 +722,10 @@ export async function getDashboard(
     leagues,
     warnings,
   };
-  await saveCache(`dashboard:${season}:${week}`, dashboard);
+  await saveCache(
+    `${namespace}:dashboard:${season}:${week}`,
+    dashboard,
+    userId,
+  );
   return dashboard;
 }

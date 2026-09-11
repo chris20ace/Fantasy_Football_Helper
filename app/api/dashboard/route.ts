@@ -1,7 +1,8 @@
 import { getChatGPTUser } from '#dashboard-auth';
 import { getDashboard } from '@/lib/fantasy/server';
 export async function GET(request: Request) {
-  if (!(await getChatGPTUser()))
+  const user = await getChatGPTUser();
+  if (!user)
     return Response.json(
       { error: 'Sign in to your private workspace.' },
       { status: 401 },
@@ -16,7 +17,7 @@ export async function GET(request: Request) {
     );
   try {
     return Response.json(
-      await getDashboard(week, params.get('refresh') === '1'),
+      await getDashboard(user.userId, week, params.get('refresh') === '1'),
       { headers: { 'Cache-Control': 'private, no-store' } },
     );
   } catch {

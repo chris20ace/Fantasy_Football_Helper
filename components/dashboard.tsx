@@ -1,4 +1,6 @@
 'use client';
+import Link from 'next/link';
+import SignOut from './sign-out';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowRight,
@@ -133,7 +135,7 @@ function Rail({
         </nav>
         <div className="rail-leagues">
           <div className="rail-label">
-            YOUR LEAGUES <span>{leagues.length || 7}</span>
+            YOUR LEAGUES <span>{leagues.length}</span>
           </div>
           {leagues.map((l) => (
             <button
@@ -212,7 +214,11 @@ function Kickoff({ player, now }: { player: Player; now: number }) {
   );
 }
 
-export default function FantasyDashboard() {
+export default function FantasyDashboard({
+  displayName,
+}: {
+  displayName: string;
+}) {
   const [data, setData] = useState<Dashboard | null>(null),
     [loading, setLoading] = useState(true),
     [error, setError] = useState(''),
@@ -245,9 +251,19 @@ export default function FantasyDashboard() {
         const response = await fetch(`/api/dashboard?${params}`, {
           signal: request.signal,
         });
+        if (response.status === 401) {
+          setData(null);
+          window.location.replace('/login');
+          return;
+        }
         const value = (await response.json()) as Dashboard & { error?: string };
         if (!response.ok)
           throw new Error(value.error ?? 'Unable to sync your leagues.');
+        if (!value.leagues.length) {
+          setData(null);
+          window.location.replace('/setup');
+          return;
+        }
         setData(value);
         setError('');
         setNow(Date.now());
@@ -412,7 +428,18 @@ export default function FantasyDashboard() {
                   ? 'Connected'
                   : 'Workspace'}
             </span>
-            <span className="avatar">CB</span>
+            <Link prefetch={false} href="/setup" className="account-link">
+              Manage accounts
+            </Link>
+            <span className="avatar" title={displayName}>
+              {displayName
+                .split(/\s+/)
+                .slice(0, 2)
+                .map((n) => n[0])
+                .join('')
+                .toUpperCase()}
+            </span>
+            <SignOut />
           </div>
         </header>
         <div className="content">
@@ -438,7 +465,7 @@ export default function FantasyDashboard() {
               </h1>
               <p>
                 {view === 'overview'
-                  ? 'Seven leagues. One clear view of your week.'
+                  ? `${leagues.length} leagues. One clear view of your week.`
                   : view === 'lab'
                     ? 'Compare every eligible combination, with game locks respected.'
                     : view === 'portfolio'
@@ -1648,6 +1675,9 @@ function Connections({
           <div>
             <div className="eyebrow">LIVE DATA, CLEAR STATUS</div>
             <h2>Your league connections</h2>
+            <Link prefetch={false} className="account-link" href="/setup">
+              Add or manage accounts →
+            </Link>
           </div>
           <Button variant="outline" onClick={onRefresh} disabled={loading}>
             <RefreshCw size={14} />
@@ -1688,7 +1718,7 @@ function Connections({
       </section>
       <section className="panel guide-panel">
         <div className="eyebrow">A SMARTER SUNDAY ROUTINE</div>
-        <h2>Three minutes. Seven leagues.</h2>
+        <h2>Three minutes. Every league.</h2>
         <ol>
           <li>
             <b>Refresh before kickoff.</b>
@@ -1741,8 +1771,11 @@ function Connections({
         </p>
         <p>
           <strong>Private access:</strong> ESPN sessions stay on the server.
-          They can expire; reconnect using the project’s connection helper, then
-          update the private server connection.
+          They can expire;{' '}
+          <Link prefetch={false} href="/setup">
+            reconnect your account
+          </Link>{' '}
+          to update the saved session.
         </p>
         <p className="tiny">
           The dashboard recommends combinations from players already on your

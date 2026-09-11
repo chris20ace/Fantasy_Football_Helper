@@ -45,7 +45,7 @@ const league = (players, keys = ['RB'], extra = {}) => ({
   warnings: [],
   ...extra,
 });
-test('solves the superflex greedy trap globally without using a player twice', () => {
+void test('solves the superflex greedy trap globally without using a player twice', () => {
   const l = league(
     [
       player('QB1', 25, ['QB', 'SF'], { slot: 'QB:0' }),
@@ -61,7 +61,7 @@ test('solves the superflex greedy trap globally without using a player twice', (
     ['QB1', 'RB'],
   );
 });
-test('keeps a locked FLEX player in the exact slot and excludes locked bench', () => {
+void test('keeps a locked FLEX player in the exact slot and excludes locked bench', () => {
   const l = league(
     [
       player('held', 10, ['RB', 'FLEX'], { slot: 'FLEX:1', locked: true }),
@@ -76,7 +76,7 @@ test('keeps a locked FLEX player in the exact slot and excludes locked bench', (
   assert.equal(a.assignments[1].recommended.id, 'held');
   assert.equal(a.assignments[0].recommended.id, 'bench');
 });
-test('replaces an OUT starter with missing projection but does not invent a gain', () => {
+void test('replaces an OUT starter with missing projection but does not invent a gain', () => {
   const a = analyze(
     league([
       player('out', null, ['RB'], { slot: 'RB:0', injury: 'OUT' }),
@@ -88,7 +88,7 @@ test('replaces an OUT starter with missing projection but does not invent a gain
   assert.equal(a.gain, null);
   assert.equal(a.assignments[0].locked, false);
 });
-test('excludes IR, taxi, bye and OUT even with positive projections', () => {
+void test('excludes IR, taxi, bye and OUT even with positive projections', () => {
   const a = analyze(
     league([
       player('healthy', 9, ['RB'], { slot: 'RB:0' }),
@@ -101,7 +101,7 @@ test('excludes IR, taxi, bye and OUT even with positive projections', () => {
   );
   assert.equal(a.recommendedTotal, 9);
 });
-test('distinguishes missing, zero and negative projections', () => {
+void test('distinguishes missing, zero and negative projections', () => {
   const a = analyze(
     league([
       player('negative', -2, ['RB'], { slot: 'RB:0' }),
@@ -114,7 +114,7 @@ test('distinguishes missing, zero and negative projections', () => {
   assert.equal(a.changes[0].id, 'zero');
   assert.equal(a.complete, false);
 });
-test('holds a healthy starter with missing projection without claiming a game lock', () => {
+void test('holds a healthy starter with missing projection without claiming a game lock', () => {
   const a = analyze(
     league([
       player('missing', null, ['RB'], { slot: 'RB:0' }),
@@ -126,7 +126,7 @@ test('holds a healthy starter with missing projection without claiming a game lo
   assert.equal(a.assignments[0].locked, false);
   assert.equal(a.recommendedTotal, null);
 });
-test('unknown locks suppress complete claim and keep starter fixed', () => {
+void test('unknown locks suppress complete claim and keep starter fixed', () => {
   const a = analyze(
     league([
       player('uncertain', 5, ['RB'], { slot: 'RB:0', locked: null }),
@@ -137,7 +137,7 @@ test('unknown locks suppress complete claim and keep starter fixed', () => {
   assert.equal(a.assignments[0].recommended.id, 'uncertain');
   assert.equal(a.complete, false);
 });
-test('pre-draft, stale, past and future weeks do not offer actionable advice', () => {
+void test('pre-draft, stale, past and future weeks do not offer actionable advice', () => {
   for (const extra of [
     { status: 'pre_draft' },
     { stale: true },
@@ -160,7 +160,7 @@ test('pre-draft, stale, past and future weeks do not offer actionable advice', (
     assert.equal(a.gain, null);
   }
 });
-test('fills repeated FLEX slots with distinct eligible players', () => {
+void test('fills repeated FLEX slots with distinct eligible players', () => {
   const l = league(
     [
       player('one', 10, ['FLEX']),
@@ -173,7 +173,7 @@ test('fills repeated FLEX slots with distinct eligible players', () => {
   assert.equal(a.recommendedTotal, 19);
   assert.equal(new Set(a.assignments.map((r) => r.recommended.id)).size, 2);
 });
-test('exposure uses latest fresh injury observation independent of league order', () => {
+void test('exposure uses latest fresh injury observation independent of league order', () => {
   const old = league([player('same', 10, ['RB'], { injury: 'OUT' })], ['RB'], {
     id: 'old',
     stale: true,

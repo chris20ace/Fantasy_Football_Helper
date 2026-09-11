@@ -1,25 +1,31 @@
 # Sunday Desk
 
-A private fantasy football workspace for **bam6i**, bringing four Sleeper leagues and three ESPN leagues into one weekly dashboard.
+A fantasy football workspace where each person signs in, connects their Sleeper and ESPN leagues, and builds a weekly game plan.
 
 **Dashboard:** https://fantasy-football-helper-orcin.vercel.app
 
 **Existing Sites deployment:** https://sunday-desk-bam6i.aceccb2020.chatgpt.site
 
-## Vercel deployment
+## Accounts and deployment
 
-GitHub pushes to main deploy the full dashboard to Vercel. The Vercel project uses Framework Preset **Other**, the repository root, and the build command in vercel.json. The Nitro adapter emits a Build Output API bundle in .vercel/output, including the server and static assets. Do not set an Output Directory override to dist: that directory belongs to the separate Cloudflare build.
+The production app uses Better Auth for email/password accounts and Supabase PostgreSQL for sessions, connections, notes, and cache storage. Users sign up at /login and connect accounts at /setup. Sleeper uses the public read API by username; private ESPN leagues use user-supplied session cookies. ESPN credentials are encrypted with AES-256-GCM and bound to the user ID. No provider lineups are changed by this app.
 
-Vercel setup for this single-owner workspace:
+Vercel builds GitHub main using pnpm build:vercel and Nitro's Build Output API. Framework Preset is Other and Output Directory is unset. Use the canonical production address above for account sign-in. Keep **Standard Deployment Protection** enabled on preview and old deployment URLs; legacy owner-only deployments still depend on it. Never disable all project protection to publish the new login page. If Skew Protection is enabled, set its boundary to the first multi-user deployment.
 
-1. Enable **Deployment Protection → Vercel Authentication → All Deployments**, including production. Keep team/project access limited to the owner and do not create public sharing exceptions. Every route and static asset is protected at Vercel's edge.
-2. Connect a **private** Vercel Blob store. Its server-only BLOB_READ_WRITE_TOKEN supplies durable cache and notes storage.
-3. Configure server-only ESPN_S2 and ESPN_SWID environment variables, plus DASHBOARD_AUTH_MODE=vercel-protection, in Production and Preview.
-4. Push to main. Vercel runs pnpm build:vercel automatically. Open the current production address after the deployment is Ready; old deployment-specific addresses remain on their old build.
+Server environment:
 
-The Vercel server does not accept ChatGPT identity headers. It relies on the owner-only Vercel protection boundary and fails closed when the explicit runtime configuration is absent. Preview data uses a separate storage namespace. Notes use origin reads and ETag conditional writes to avoid overwriting another device's changes. The existing Sites build and D1 storage remain supported through separate adapters; notes are not synchronized between the two hosts.
+- DATABASE_URL: the restricted sunday_desk_app PostgreSQL role, preferably using the project's actual Supabase transaction-pooler address.
+- BETTER_AUTH_URL: the exact canonical origin, without a trailing slash.
+- BETTER_AUTH_SECRET: a random secret of at least 32 bytes.
+- CONNECTION_ENCRYPTION_KEY: a base64-encoded 32-byte key. Retain it to keep saved connections decryptable.
 
-For local Vercel build validation: pnpm build:vercel. For the existing Sites build: pnpm build. No credentials are required to compile either target.
+Migrations use DATABASE_ADMIN_URL and DATABASE_RUNTIME_PASSWORD only on the administrator's machine. Run node --env-file=.env.auth.local --experimental-strip-types scripts/migrate-accounts.mjs to create the isolated sunday_desk schema, auth tables and restricted role. Administrator credentials must never be deployed to Vercel. The server verifies database TLS using the public Supabase root CA and standard system roots. The schema is not exposed to Supabase anonymous/authenticated API roles.
+
+For local account development, provide those server values in ignored .env.auth.local with BETTER_AUTH_URL=http://localhost:3000, then run node --env-file=.env.auth.local node_modules/vite/bin/vite.js --config vite.vercel.config.ts --host localhost --port 3000.
+
+Email verification and password-reset emails require an email provider and are not enabled. Email addresses currently identify login accounts; an email match never grants access to an existing workspace. The previous owner's connections can be moved only through a private, expiring, single-use restore invitation. New users always start empty.
+
+The existing Sites deployment is a separate legacy snapshot. These new account routes target Vercel; do not redeploy them to Sites without a compatible database/auth adapter.
 
 ## What you can do
 
@@ -31,37 +37,6 @@ For local Vercel build validation: pnpm build:vercel. For the existing Sites bui
 - Refresh manually or let the visible dashboard check every three minutes.
 
 The app is **read-only with respect to fantasy providers**. Open ESPN or Sleeper to apply your changes, then refresh Sunday Desk. The review checkbox is a personal checklist, not confirmation that a provider lineup changed.
-
-## Run locally
-
-Requirements: Node.js 22.13+ and pnpm. This project uses React, vinext, Cloudflare Workers/D1, and the supplied shadcn components.
-
-```powershell
-pnpm install
-pnpm db:local
-pnpm dev
-```
-
-Open the Local URL printed by the server. The development sign-in route creates a local test identity; production uses Sign in with ChatGPT behind the private Site’s access policy.
-
-Sleeper works with the configured public username and league IDs. ESPN requires these **server-only** secrets in an ignored `.dev.vars` file for local development, or in the Site’s secret settings for production:
-
-```dotenv
-ESPN_S2="your-private-ESPN-session-cookie"
-ESPN_SWID="{your-private-ESPN-account-id}"
-```
-
-Never put session values in browser code, source control, screenshots, or issue reports. Do not prefix these secrets with `NEXT_PUBLIC_` or `VITE_`.
-
-The original Windows connection helper remains in `scripts/Connect-ESPN.ps1`. It verifies league access and stores the session using Windows DPAPI for the current Windows user. To prepare local development from that encrypted session:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts/Import-Local-Session.ps1
-# Or provide the path of an existing encrypted connection:
-powershell -ExecutionPolicy Bypass -File scripts/Import-Local-Session.ps1 -CredentialPath "C:\path\to\credentials.dpapi"
-```
-
-Restart the local server after changing secrets. Production secrets are configured separately; saving the Windows session does not update a deployed Site. ESPN sessions can expire and need renewal.
 
 ## Data and recommendation model
 
@@ -79,11 +54,11 @@ These are estimates, not guaranteed results or a full waiver/trade recommendatio
 
 ## Privacy and persistence
 
-This deployment is a **single-owner private workspace**. The Site access policy must stay owner-only: application authentication plus that policy protects global league connections. Sharing it or turning it into a multi-user service requires per-user credentials, league membership authorization, and separate cache namespaces first.
+Every workspace and note query uses the authenticated session's user ID. Private cache keys also include a connection revision, so reconnecting or disconnecting cannot revive an older account snapshot. Public NFL schedule data is shared. Notes use database revision checks to prevent silent overwrites from another device. API responses are private/no-store.
 
-D1 stores normalized league snapshots and notes, never ESPN session cookies. Notes use revision checks so an older device cannot silently overwrite newer changes. API responses are private/no-store. `.dev.vars`, `.env*`, encrypted sessions, local caches, generated builds, and private snapshots are excluded from Git.
+Connections are validated before replacement. A failed reconnect preserves the working connection. Disconnect deletes saved credentials and invalidates the account's cached dashboard. Database-backed sessions are revoked on sign-out; auth cookies are HTTP-only. Authentication and connection endpoints have database rate limits and origin checks.
 
-The GitHub repository contains source and synthetic tests. It does not contain roster snapshots, notes, passwords, or session cookies.
+Secret files, encrypted Windows sessions, generated builds, and private snapshots are excluded from Git. Source contains neither database passwords nor league-session cookies.
 
 ## Validation
 
@@ -91,15 +66,14 @@ The GitHub repository contains source and synthetic tests. It does not contain r
 pnpm typecheck
 pnpm lint
 pnpm test
-pnpm build
 pnpm build:vercel
 ```
 
 Tests cover assignment traps, repeated FLEX eligibility, game locks, missing/negative projections, IR/taxi/bye exclusions, stale/future/pre-draft behavior, cross-source exposure, and custom scoring. Lint applies to application code; generated shadcn components and the generated mobile hook are left intact.
 
-Database schema is defined in `db/schema.ts`. Generate a new immutable migration with `pnpm db:generate`, then apply locally with `pnpm db:local`. Sites includes migrations in the deployment artifact.
+Run node --env-file=.env.auth.local --experimental-strip-types scripts/test-accounts.mjs for database integration checks. It creates synthetic accounts, tests isolation and session revocation, and deletes only those test accounts afterward.
 
-Production configuration lives in `.openai/hosting.json`; secret values live in the private Site environment. The GitHub source and deployed Site are separate destinations: a normal GitHub push alone does not publish the Site.
+Account schema migrations are in db/postgres. Existing Drizzle/D1 files belong to the legacy Sites snapshot.
 
 ## Provider references
 

@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { scoreSleeper } from '../lib/fantasy/scoring.ts';
-test('offense does not inherit long field goal coverage gaps', () => {
+void test('offense does not inherit long field goal coverage gaps', () => {
   assert.deepEqual(
     scoreSleeper(
       { rec: 5, rec_yd: 80 },
@@ -11,7 +11,7 @@ test('offense does not inherit long field goal coverage gaps', () => {
     { projection: 13, partial: false },
   );
 });
-test('passing interception return penalty never applies to team defense', () => {
+void test('passing interception return penalty never applies to team defense', () => {
   assert.equal(
     scoreSleeper({ pass_int_td: 1, int: 2 }, { pass_int_td: -3, int: 2 }, 'DEF')
       .projection,
@@ -26,7 +26,7 @@ test('passing interception return penalty never applies to team defense', () => 
     5,
   );
 });
-test('derives aggregate 50+ field goals and total misses', () => {
+void test('derives aggregate 50+ field goals and total misses', () => {
   const a = scoreSleeper(
     {
       fgm: 2.1,
@@ -50,26 +50,26 @@ test('derives aggregate 50+ field goals and total misses', () => {
   assert.equal(a.projection, 9.84);
   assert.equal(a.partial, false);
 });
-test('does not invent the split between 50–59 and 60+ field goals', () => {
+void test('does not invent the split between 50–59 and 60+ field goals', () => {
   assert.equal(
     scoreSleeper({ fgm: 2, fgm_30_39: 1 }, { fgm_50_59: 5, fgm_60p: 6 }, 'K')
       .partial,
     true,
   );
 });
-test('flags unmodeled defensive fourth-down stops', () => {
+void test('flags unmodeled defensive fourth-down stops', () => {
   assert.equal(
     scoreSleeper({ sack: 3 }, { sack: 1, def_4_and_stop: 1 }, 'DEF').partial,
     true,
   );
 });
-test('scores defense special teams once, despite similarly named player stat', () => {
+void test('scores defense special teams once, despite similarly named player stat', () => {
   assert.equal(
     scoreSleeper({ st_td: 0.2 }, { st_td: 6, def_st_td: 6 }, 'DEF').projection,
     1.2,
   );
 });
-test('applies reception bonuses only to their designated position', () => {
+void test('applies reception bonuses only to their designated position', () => {
   assert.equal(
     scoreSleeper({ rec: 5 }, { rec: 1, bonus_rec_te: 0.5 }, 'TE').projection,
     7.5,
@@ -79,7 +79,7 @@ test('applies reception bonuses only to their designated position', () => {
     5,
   );
 });
-test('ADP-only rows are missing projections, not zero points', () => {
+void test('ADP-only rows are missing projections, not zero points', () => {
   assert.equal(
     scoreSleeper({ adp_dd_ppr: 10 }, { rec: 1 }, 'WR').projection,
     null,
