@@ -9,6 +9,35 @@ const normalize = (v: unknown) =>
   (typeof v === 'string' ? v : '').replace(/[{}]/g, '').toLowerCase();
 const abbreviation = (v: string) =>
   ({ WSH: 'WAS', JAC: 'JAX', LA: 'LAR' })[v] ?? v;
+export function selectSleeperProjections(
+  rows: Raw[],
+  season: number,
+  week: number,
+): Raw[] {
+  const selected = new Map<string, Raw>();
+  for (const row of rows) {
+    if (
+      typeof row.player_id !== 'string' ||
+      !row.player_id ||
+      Number(row.season) !== season ||
+      Number(row.week) !== week ||
+      row.season_type !== 'regular' ||
+      row.category !== 'proj' ||
+      row.company !== 'rotowire' ||
+      !row.stats ||
+      typeof row.stats !== 'object'
+    )
+      continue;
+    const prior = selected.get(row.player_id);
+    const updated = (r: Raw) =>
+      typeof r.updated_at === 'number'
+        ? r.updated_at
+        : Date.parse(r.updated_at) || 0;
+    if (!prior || updated(row) > updated(prior))
+      selected.set(row.player_id, row);
+  }
+  return [...selected.values()];
+}
 export function gameInfo(team: string, proTeams: Raw[], week: number) {
   const pro = proTeams.find(
     (t) => abbreviation(t.abbrev) === abbreviation(team),
@@ -319,6 +348,12 @@ export function fromSleeper(
   currentWeek: number,
   sleeperUserId: string,
 ): League {
+  const weeklyProjections = new Map(
+    selectSleeperProjections(projections, season, week).map((p) => [
+      p.player_id,
+      p,
+    ]),
+  );
   const roster = rosters.find(
     (r) =>
       r.owner_id === sleeperUserId ||
@@ -360,7 +395,7 @@ export function fromSleeper(
       .filter((id: string) => id && id !== '0')
       .map((id: string) => {
         const d = details[id] ?? {},
-          projection = projections.find((p) => p.player_id === id),
+          projection = weeklyProjections.get(id),
           meta = d.full_name ? d : (projection?.player ?? d);
         const position = meta.position ?? (id.length <= 3 ? 'DEF' : '—'),
           team = abbreviation(meta.team ?? (position === 'DEF' ? id : 'FA')),
@@ -370,7 +405,7 @@ export function fromSleeper(
         const scoring = scoreSleeper(
           projection?.stats,
           raw.scoring_settings ?? {},
-          position,
+          week,
         );
         return {
           id,
@@ -464,7 +499,7 @@ export function fromSleeper(
       'No weekly matchup is available yet. Showing the current roster.',
     );
   warnings.push(
-    'Sleeper projections are supplemental Rotowire estimates, recalculated with your scoring rules. Sparse standard stats count as projected zero; unsupported custom scoring is flagged.',
+    'Sleeper’s Rotowire projections use the scoring rules from its app for this league. Missing estimates stay unavailable; unsupported scoring is flagged.',
   );
   return {
     id: `sleeper:${raw.league_id}`,

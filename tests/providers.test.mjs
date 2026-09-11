@@ -1,8 +1,87 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { fromESPN, fromSleeper } from '../lib/fantasy/providers.ts';
+import {
+  fromESPN,
+  fromSleeper,
+  espnPlayer,
+  selectSleeperProjections,
+} from '../lib/fantasy/providers.ts';
 const season = 2026,
   week = 1;
+void test('ESPN uses only the exact weekly native appliedTotal, preserving zero and negative estimates', () => {
+  for (const value of [0, -2, 21.37]) {
+    const p = {
+      playerPoolEntry: {
+        player: {
+          id: 1,
+          stats: [
+            {
+              seasonId: season,
+              scoringPeriodId: week + 1,
+              statSourceId: 1,
+              statSplitTypeId: 1,
+              appliedTotal: 999,
+            },
+            {
+              seasonId: season - 1,
+              scoringPeriodId: week,
+              statSourceId: 1,
+              statSplitTypeId: 1,
+              appliedTotal: 999,
+            },
+            {
+              seasonId: season,
+              scoringPeriodId: week,
+              statSourceId: 0,
+              statSplitTypeId: 1,
+              appliedTotal: 999,
+            },
+            {
+              seasonId: season,
+              scoringPeriodId: week,
+              statSourceId: 1,
+              statSplitTypeId: 0,
+              appliedTotal: 999,
+            },
+            {
+              seasonId: season,
+              scoringPeriodId: week,
+              statSourceId: 1,
+              statSplitTypeId: 1,
+              appliedTotal: value,
+            },
+          ],
+        },
+      },
+    };
+    assert.equal(espnPlayer(p, [], week, season, week, null).projection, value);
+    p.playerPoolEntry.player.stats.pop();
+    assert.equal(espnPlayer(p, [], week, season, week, null).projection, null);
+  }
+});
+void test('Sleeper selects the latest weekly provider projection without accepting actuals or another week', () => {
+  const row = {
+    player_id: '1',
+    season: String(season),
+    week,
+    company: 'rotowire',
+    category: 'proj',
+    season_type: 'regular',
+    updated_at: 100,
+    stats: { rec: 5 },
+  };
+  const latest = { ...row, updated_at: 200, stats: { rec: 6 } };
+  const rows = [
+    row,
+    latest,
+    { ...row, week: 2 },
+    { ...row, season: '2025' },
+    { ...row, category: 'stat' },
+    { ...row, company: 'unknown' },
+  ];
+  assert.deepEqual(selectSleeperProjections(rows, season, week), [latest]);
+  assert.deepEqual(selectSleeperProjections([{}], season, week), []);
+});
 const entry = (id, slot = 2, points = 12) => ({
   playerId: id,
   lineupSlotId: slot,
@@ -209,6 +288,11 @@ const sleeper = () => ({
     ]),
   ),
   projections: ['11', '12', '21', '22', '23'].map((player_id) => ({
+    season: String(season),
+    week,
+    season_type: 'regular',
+    category: 'proj',
+    company: 'rotowire',
     player_id,
     stats: { rush_yd: 60, rec: 4 },
   })),

@@ -53,8 +53,6 @@ export default function WeeklyPlan({
   now,
   blocked,
   onRefresh,
-  comparisonSource,
-  onComparisonSource,
   mode = 'plan',
   onOpen,
 }: {
@@ -65,8 +63,6 @@ export default function WeeklyPlan({
   now: number;
   blocked: boolean;
   onRefresh: () => void;
-  comparisonSource: 'model' | 'provider';
-  onComparisonSource: (value: 'model' | 'provider') => void;
   mode?: 'plan' | 'lineup' | 'matchup';
   onOpen: (view: 'lab' | 'insights' | 'matchup') => void;
 }) {
@@ -95,7 +91,7 @@ export default function WeeklyPlan({
     () => (report && !stale ? rankWaivers(report, now) : []),
     [report, stale, now],
   );
-  const comparisonLabel = comparisonSource === 'model' ? 'Model' : 'Provider';
+  const comparisonLabel = 'Projected';
   const matchup = useMemo(
     () =>
       report
@@ -105,10 +101,9 @@ export default function WeeklyPlan({
               league: { ...report.league, stale: stale || report.league.stale },
             },
             now,
-            comparisonSource,
           )
         : null,
-    [report, stale, now, comparisonSource],
+    [report, stale, now],
   );
   const [copied, setCopied] = useState('');
   if (!active) return null;
@@ -133,7 +128,7 @@ export default function WeeklyPlan({
             (r) =>
               `${r.slot.label}: ${r.recommended?.name ?? 'Empty — needs attention'}${r.locked ? ' (locked)' : ''}`,
           ),
-          'Review in your league app. Estimates use verified role and workload history; incomplete players require manual review.',
+          'Review in your league app. Uses your league provider’s projections and scoring. Missing estimates require manual review.',
         ].join('\n'),
       );
       setCopied('Lineup copied. Apply it in your league app.');
@@ -190,7 +185,9 @@ export default function WeeklyPlan({
           <RefreshCw className="spin" />
           <div>
             <h2>Building your weekly plan</h2>
-            <p>Checking roles, scoring, available players and your opponent.</p>
+            <p>
+              Loading provider projections, available players and your opponent.
+            </p>
           </div>
         </div>
       ) : (
@@ -224,8 +221,8 @@ export default function WeeklyPlan({
                     {!analysis.enabled
                       ? analysis.reasons[0]
                       : analysis.complete
-                        ? 'The highest projected legal combination from your roster, with game locks respected.'
-                        : 'The best supported combination among evaluated players. Unverified players stay held for your review.'}
+                        ? 'The highest projected legal combination using your league provider’s points, with game locks respected.'
+                        : 'The best supported combination among evaluated players. Players with missing projections or unknown locks stay held for review.'}
                   </p>
                 </div>
                 {(analysis.currentTotal !== null ||
@@ -258,8 +255,8 @@ export default function WeeklyPlan({
                   {analysis.currentTotal === null &&
                   analysis.recommendedTotal === null
                     ? 'Some starter estimates are missing, so full-lineup totals are withheld.'
-                    : 'Full-game model points; actual scores are shown separately.'}{' '}
-                  · {report.league.scoring}
+                    : 'Provider projections for whole games; actual scores are shown separately.'}{' '}
+                  · {report.league.scoring} · {report.league.source}
                 </small>
               </div>
               <div
@@ -280,8 +277,8 @@ export default function WeeklyPlan({
                       <p className="muted">
                         {starters} / {report.league.slots.length} slots filled ·{' '}
                         {analysis.complete
-                          ? 'All roster forecasts evaluated'
-                          : 'Some forecasts need review'}
+                          ? 'All roster projections evaluated'
+                          : 'Some provider projections are missing'}
                         {analysis.issues.length > 0 &&
                           ` · ${analysis.issues.length} lineup alerts`}
                       </p>
@@ -317,7 +314,7 @@ export default function WeeklyPlan({
                                     ? `Currently: ${row.current.name}`
                                     : 'Currently empty'}
                                   {row.recommended
-                                    ? ` · ${pts(row.recommended.projection)} model pts`
+                                    ? ` · ${pts(row.recommended.projection)} projected pts`
                                     : ''}
                                 </p>
                               </div>
@@ -411,10 +408,9 @@ export default function WeeklyPlan({
                                 {p && <small>{gameTime(p, now)}</small>}
                                 {p && unavailable(p) && (
                                   <small className="starter-alert">
-                                    {p.modelExclusionReason ||
-                                      (p.bye
-                                        ? 'Bye week'
-                                        : `Unavailable · ${p.injury}`)}
+                                    {p.bye
+                                      ? 'Bye week'
+                                      : `Unavailable · ${p.injury}`}
                                   </small>
                                 )}
                                 {p && monitor && (
@@ -425,7 +421,7 @@ export default function WeeklyPlan({
                               </div>
                               <div className="starter-points">
                                 <b>{pts(p?.projection)}</b>
-                                <small>model pts</small>
+                                <small>projected pts</small>
                               </div>
                             </li>
                           );
@@ -455,8 +451,8 @@ export default function WeeklyPlan({
                       </p>
                       <details className="plan-evidence">
                         <summary>
-                          Lineup alerts & model limits ({analysis.issues.length}{' '}
-                          alerts)
+                          Lineup alerts & projection coverage (
+                          {analysis.issues.length} alerts)
                         </summary>
                         {analysis.issues.map((i, index) => (
                           <p key={index}>
@@ -468,10 +464,9 @@ export default function WeeklyPlan({
                           <p key={r}>{r}</p>
                         ))}
                         <p>
-                          Estimates use current NFL roles and recent comparable
-                          workloads under this league’s scoring. Missing roles
-                          or forecasts are held; the model cannot guarantee
-                          results.
+                          Projections come from {report.league.source} under
+                          this league’s scoring. Missing estimates and unknown
+                          locks stay held for review. Actual results can differ.
                         </p>
                       </details>
                     </>
@@ -510,7 +505,7 @@ export default function WeeklyPlan({
                             </b>
                             <p>{pick.reason}</p>
                             <small>
-                              {pts(pick.player.projection)} model pts ·{' '}
+                              {pts(pick.player.projection)} projected pts ·{' '}
                               {gameTime(pick.player, now)}
                             </small>
                           </li>
@@ -560,28 +555,9 @@ export default function WeeklyPlan({
                   </Button>
                 )}
               </div>
-              <div className="matchup-source">
-                <span>Compare both teams using</span>
-                <Select
-                  value={comparisonSource}
-                  onValueChange={(value) =>
-                    (value === 'model' || value === 'provider') &&
-                    onComparisonSource(value)
-                  }
-                >
-                  <SelectTrigger aria-label="Matchup projection source">
-                    <SelectValue>
-                      {comparisonSource === 'model'
-                        ? 'Sunday Desk model'
-                        : 'Provider estimates'}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="model">Sunday Desk model</SelectItem>
-                    <SelectItem value="provider">Provider estimates</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+              <p className="muted">
+                Both teams use {report.league.source} · {report.league.scoring}.
+              </p>
               <div className="matchup-numbers">
                 <div>
                   <span>Your reported score</span>
@@ -607,7 +583,7 @@ export default function WeeklyPlan({
                   </b>
                 </div>
                 <div>
-                  <span>After Sunday Desk’s changes</span>
+                  <span>After recommended changes</span>
                   <b>{delta(matchup.suggestedEdge)}</b>
                 </div>
               </div>
@@ -622,8 +598,6 @@ export default function WeeklyPlan({
                 {comparisonLabel} estimates cover whole games; they are separate
                 from live scores and are not a win probability. The opponent’s
                 submitted lineup can change.
-                {comparisonSource === 'provider' &&
-                  ' The change scenario rescores Sunday Desk’s recommended lineup using provider estimates.'}
               </p>
               {mode === 'matchup' && matchup.available && (
                 <>

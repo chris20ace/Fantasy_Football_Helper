@@ -1,39 +1,29 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import {
-  historyWeeks,
-  project,
-  applyForecast,
-  rankWaivers,
-} from '../lib/fantasy/projections.ts';
-import { scoreSleeper, scoreESPNGame } from '../lib/fantasy/scoring.ts';
+import { rankWaivers } from '../lib/fantasy/projections.ts';
+import { analyze } from '../lib/fantasy/analysis.ts';
+import { scoreSleeper } from '../lib/fantasy/scoring.ts';
 const now = 1000;
-const samples = (points) =>
-  Array.from({ length: 8 }, (_, i) => ({ season: 2025, week: 18 - i, points }));
-const player = (id, points, extra = {}) =>
-  applyForecast(
-    {
-      id,
-      key: id,
-      name: id,
-      position: 'RB',
-      team: 'DET',
-      eligible: ['RB'],
-      slot: null,
-      projection: points,
-      partial: false,
-      actual: null,
-      injury: 'ACTIVE',
-      bye: false,
-      kickoff: 100000,
-      opponent: 'CHI',
-      locked: false,
-      reserve: false,
-      taxi: false,
-      ...extra,
-    },
-    project(samples(points), 2026, 1, 1),
-  );
+const player = (id, points, extra = {}) => ({
+  id,
+  key: id,
+  name: id,
+  position: 'RB',
+  team: 'DET',
+  eligible: ['RB'],
+  slot: null,
+  projection: points,
+  partial: false,
+  actual: null,
+  injury: 'ACTIVE',
+  bye: false,
+  kickoff: 100000,
+  opponent: 'CHI',
+  locked: false,
+  reserve: false,
+  taxi: false,
+  ...extra,
+});
 const report = (players, candidates, extra = {}) => ({
   league: {
     id: 'sleeper:1',
@@ -47,7 +37,7 @@ const report = (players, candidates, extra = {}) => ({
     season: 2026,
     fetchedAt: new Date(now).toISOString(),
     scoring: 'PPR',
-    source: 'model',
+    source: 'Sleeper projections',
     players,
     slots: [{ id: 'RB:0', key: 'RB', label: 'RB' }],
     standings: [],
@@ -59,93 +49,54 @@ const report = (players, candidates, extra = {}) => ({
     ...extra,
   },
   candidates,
-  historyThrough: '2025 week18',
   fetchedAt: new Date(now).toISOString(),
   evaluated: candidates.length,
   ownershipVerified: true,
   warnings: [],
-  model: 'test',
+  projectionSource: 'provider',
 });
-void test('history cutoff crosses seasons and never includes selected or current week', () => {
-  assert.deepEqual(historyWeeks(2026, 1, 1, 2), [
-    { season: 2025, week: 18 },
-    { season: 2025, week: 17 },
-  ]);
-  const f = project(
-    [...samples(10), { season: 2026, week: 1, points: 999 }],
-    2026,
-    8,
-    1,
-  );
-  assert.equal(f.points, 10);
-  assert.equal(f.games, 8);
-});
-void test('requires three appearances, deduplicates games, and preserves negative and zero scores', () => {
-  assert.equal(project([], 2026, 1, 1).points, null);
-  assert.equal(project([samples(4)[0], samples(4)[0]], 2026, 1, 1).games, 1);
-  assert.equal(project(samples(0), 2026, 1, 1).points, 0);
-  assert.equal(project(samples(-2), 2026, 1, 1).points, -2);
-  assert.equal(
-    project(
-      samples(4).map((g, i) => ({ ...g, partial: i === 0 })),
-      2026,
-      1,
-      1,
-    ).points,
-    null,
-  );
-});
-void test('scores nonlinear bonuses per actual game and honors explicit zero position overrides', () => {
-  const rules = [
-      { statId: 24, points: 0.1 },
-      { statId: 37, points: 3 },
-      { statId: 53, points: 1, pointsOverrides: { 2: 0, 4: 2 } },
+void test('CeeDee Lamb stays ahead of Dalton Schultz using provider projections without any history', () => {
+  const r = report(
+    [
+      player('lamb', 21.4, {
+        name: 'CeeDee Lamb',
+        position: 'WR',
+        eligible: ['FLEX'],
+        slot: 'FLEX:0',
+      }),
+      player('schultz', 8.2, {
+        name: 'Dalton Schultz',
+        position: 'TE',
+        eligible: ['FLEX'],
+      }),
     ],
-    covered = new Set(['24', '37', '53']);
-  assert.equal(
-    scoreESPNGame({ 24: 110, 37: 1, 53: 5 }, rules, 2, covered).projection,
-    14,
+    [],
+    { slots: [{ id: 'FLEX:0', key: 'FLEX', label: 'FLEX' }] },
   );
-  assert.equal(
-    scoreESPNGame({ 24: 110, 37: 1, 53: 5 }, rules, 4, covered).projection,
-    24,
+  const result = analyze(r.league, now);
+  assert.equal(result.assignments[0].recommended.id, 'lamb');
+  assert.equal(result.currentTotal, 21.4);
+  assert.equal(result.gain, 0);
+  r.league.players[0].slot = null;
+  r.league.players[1].slot = 'FLEX:0';
+  assert.equal(analyze(r.league, now).assignments[0].recommended.id, 'lamb');
+});
+void test('rookies with provider projections can be recommended with no history or role model', () => {
+  const r = report(
+    [player('starter', 5, { slot: 'RB:0' })],
+    [player('rookie', 12)],
   );
-  assert.equal(
-    scoreESPNGame({}, [{ statId: 9999, points: 5 }], 2, covered).partial,
-    true,
-  );
+  assert.equal(rankWaivers(r, now)[0].gain, 7);
+  delete r.projectionSource;
   assert.deepEqual(
-    scoreESPNGame(
-      {},
-      [
-        { statId: 63, points: 6 },
-        { statId: 209, points: 1 },
-      ],
-      2,
-      covered,
-    ),
-    { projection: 0, partial: false },
+    rankWaivers(r, now),
+    [],
+    'Old report schemas cannot supply recommendations',
   );
-  const f = project(
-    samples(0).map((g, i) => ({
-      ...g,
-      points: scoreESPNGame(
-        { 24: i % 2 ? 80 : 110, 37: i % 2 ? 0 : 1 },
-        rules,
-        2,
-        covered,
-      ).projection,
-    })),
-    2026,
-    1,
-    1,
-  );
-  assert.ok(f.points > 10 && f.points < 14);
 });
 void test('league scoring changes the best waiver pickup', () => {
   const score = (stats, ppr) =>
-    scoreSleeper(stats, { rush_yd: 0.1, rec_yd: 0.1, rec: ppr }, 'RB')
-      .projection;
+    scoreSleeper(stats, { rush_yd: 0.1, rec_yd: 0.1, rec: ppr }, 1).projection;
   for (const ppr of [0, 1]) {
     const r = report(
       [player('starter', 4, { slot: 'RB:0' })],
@@ -184,7 +135,7 @@ void test('waiver FLEX assignment is global and respects locked slots', () => {
   r.league.players[1].locked = true;
   assert.equal(rankWaivers(r, now)[0].gain, 0);
 });
-void test('holds stale ownership, owned/locked/late-waiver candidates and unsupported history out of recommendations', () => {
+void test('holds stale ownership, owned/locked/late-waiver candidates and unsupported projections out of recommendations', () => {
   const r = report(
     [player('mine', 4, { slot: 'RB:0' })],
     [
@@ -206,7 +157,7 @@ void test('holds stale ownership, owned/locked/late-waiver candidates and unsupp
   r.league.stale = true;
   assert.deepEqual(rankWaivers(r, now), []);
 });
-void test('missing healthy roster history prevents a numeric gain', () => {
+void test('missing healthy roster projections prevents a numeric gain', () => {
   const r = report(
     [
       player('starter', 4, { slot: 'RB:0' }),

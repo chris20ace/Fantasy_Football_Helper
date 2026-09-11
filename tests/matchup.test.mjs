@@ -25,7 +25,7 @@ const player = (id, points, slot = null, extra = {}) => ({
 const report = () => ({
   fetchedAt: new Date(now).toISOString(),
   candidates: [],
-  model: 'test',
+  projectionSource: 'provider',
   ownershipVerified: true,
   league: {
     id: 'sleeper:1',
@@ -60,31 +60,23 @@ const report = () => ({
     },
   },
 });
-void test('provider comparison uses one source for both teams and scores the model-recommended scenario', () => {
+void test('native provider points choose and score the recommended lineup for both teams', () => {
   const r = report();
-  for (const p of [...r.league.players, ...r.league.opponent.players]) {
-    p.providerProjection = 20;
-    p.providerPartial = false;
-  }
-  r.league.players[1].providerProjection = 100;
-  const m = analyzeMatchup(r, now, 'provider');
+  for (const p of [...r.league.players, ...r.league.opponent.players])
+    p.projection = 20;
+  r.league.players[1].projection = 100;
+  const m = analyzeMatchup(r, now);
   assert.equal(m.submitted, 120);
   assert.equal(m.opposing, 40);
-  assert.equal(
-    m.suggested,
-    40,
-    'Scenario must keep model choices, not quietly reoptimize with provider scores',
-  );
+  assert.equal(m.suggested, 120);
   assert.equal(m.submittedEdge, 80);
-  assert.equal(m.suggestedEdge, 0);
-  r.league.opponent.players[0].providerPartial = true;
-  assert.equal(analyzeMatchup(r, now, 'provider').opposing, null);
-  delete r.league.opponent.players[0].providerPartial;
-  assert.equal(
-    analyzeMatchup(r, now, 'provider').opposing,
-    null,
-    'Older data without provider completeness stays unknown',
-  );
+  assert.equal(m.suggestedEdge, 80);
+  assert.ok(m.rows.some((r) => r.suggested?.id === 'b'));
+  r.league.opponent.players[0].partial = true;
+  assert.equal(analyzeMatchup(r, now).opposing, null);
+  r.league.opponent.players[0].partial = false;
+  r.league.opponent.players[0].projection = null;
+  assert.equal(analyzeMatchup(r, now).opposing, null);
 });
 void test('compares submitted starters and achievable recommended lineup without mixing live points', () => {
   const r = report(),
@@ -152,7 +144,7 @@ void test('duplicate IDs, duplicate slots, invalid IDs and ineligible assignment
     assert.equal(m.submittedEdge, null);
   }
 });
-void test('stale, invalid timestamps, future snapshots and other weeks pause modeled comparisons', () => {
+void test('stale, invalid timestamps, future snapshots and other weeks pause projected comparisons', () => {
   for (const change of [
     (r) => (r.league.stale = true),
     (r) => (r.league.error = 'Unavailable'),

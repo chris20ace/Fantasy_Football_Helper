@@ -1,5 +1,5 @@
 import { analyze, total } from './analysis.ts';
-import type { InsightReport, ProjectedPlayer } from './projections.ts';
+import type { InsightReport } from './projections.ts';
 import type { Player } from './types.ts';
 
 const round = (value: number) => Math.round(value * 10) / 10;
@@ -10,14 +10,11 @@ const known = (p: Player | null): p is Player =>
 const sum = (players: (Player | null)[]) =>
   players.every(known) ? total(players) : null;
 
-export function analyzeMatchup(
-  report: InsightReport,
-  now = Date.now(),
-  source: 'model' | 'provider' = 'model',
-) {
+export function analyzeMatchup(report: InsightReport, now = Date.now()) {
   const { league } = report;
   const opponent = league.opponent;
   const fresh =
+    report.projectionSource === 'provider' &&
     Number.isFinite(Date.parse(report.fetchedAt)) &&
     now - Date.parse(report.fetchedAt) <= 300000 &&
     Date.parse(report.fetchedAt) <= now + 60000 &&
@@ -45,23 +42,13 @@ export function analyzeMatchup(
     unique(league.players);
   const available = fresh && current && verified && league.slots.length > 0;
   const analysis = analyze({ ...league, stale: !fresh || !!league.stale }, now);
-  const compare = (player: Player | null): Player | null => {
-    if (!player || source === 'model') return player;
-    const p = player as Partial<ProjectedPlayer>;
-    return {
-      ...player,
-      projection: p.providerProjection ?? null,
-      partial: p.providerPartial !== false,
-    };
-  };
   const rows = league.slots.map((slot) => ({
     slot,
-    mine: compare(league.players.find((p) => p.slot === slot.id) ?? null),
-    suggested: compare(
+    mine: league.players.find((p) => p.slot === slot.id) ?? null,
+    suggested:
       analysis.assignments.find((a) => a.slot.id === slot.id)?.recommended ??
-        null,
-    ),
-    theirs: compare(opponent?.players?.find((p) => p.slot === slot.id) ?? null),
+      null,
+    theirs: opponent?.players?.find((p) => p.slot === slot.id) ?? null,
   }));
   const submitted = available ? sum(rows.map((r) => r.mine)) : null;
   const opposing = available ? sum(rows.map((r) => r.theirs)) : null;
@@ -95,7 +82,7 @@ export function analyzeMatchup(
       : !fresh
         ? 'Refresh this league to compare current matchup data.'
         : !current
-          ? 'Model matchup comparisons are available for the current week. The score below is the selected week’s reported score.'
+          ? 'Projected matchup comparisons are available for the current week. The score below is the selected week’s reported score.'
           : !verified
             ? 'The opponent’s submitted lineup could not be verified.'
             : 'Full totals require an estimate for every starting slot on both teams.',

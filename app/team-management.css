@@ -315,18 +315,6 @@
   gap: 12px;
   margin: 20px 0;
 }
-.matchup-source {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px;
-  margin: 16px 0;
-  color: #52627a;
-  font-size: 14px;
-}
-.desk .matchup-source [data-slot='select-trigger'] {
-  background: white;
-}
 .matchup-numbers > div {
   padding: 16px;
   background: #f3f6fb;

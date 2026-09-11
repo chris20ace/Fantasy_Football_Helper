@@ -1,6 +1,5 @@
 import type { Analysis, League, Player } from './types';
 export const unavailable = (p: Player) =>
-  p.modelExcluded === true ||
   p.bye ||
   /^(OUT|IR|INJURY_RESERVE|SUSPENDED|PUP|DNR|NA)$/i.test(p.injury) ||
   p.reserve ||
@@ -37,16 +36,13 @@ export function analyze(league: League, now = Date.now()): Analysis {
             {
               player: p,
               slot: league.slots[i].label,
-              reason: p.modelExcluded
-                ? (p.modelExclusionReason ??
-                  'NFL role does not support a starting projection')
-                : p.bye
-                  ? 'Bye week'
-                  : p.reserve
-                    ? 'On injured reserve'
-                    : p.taxi
-                      ? 'On taxi squad'
-                      : `Unavailable · ${p.injury.replaceAll('_', ' ')}`,
+              reason: p.bye
+                ? 'Bye week'
+                : p.reserve
+                  ? 'On injured reserve'
+                  : p.taxi
+                    ? 'On taxi squad'
+                    : `Unavailable · ${p.injury.replaceAll('_', ' ')}`,
             },
           ]
         : /QUESTIONABLE|DOUBTFUL|DAY_TO_DAY/i.test(p.injury)

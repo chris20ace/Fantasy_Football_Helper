@@ -1,180 +1,38 @@
 import { analyze, isLocked, unavailable } from './analysis.ts';
 import type { League, Player } from './types.ts';
-import type { RoleAssessment } from './roles.ts';
 
-export type GameSample = {
-  season: number;
-  week: number;
-  points: number;
-  partial?: boolean;
-  receptions?: number;
-  team?: string;
-  passAttempts?: number;
-  carries?: number;
-  targets?: number;
-  snaps?: number;
-  teamSnaps?: number;
-  played?: boolean;
-  activeWithoutAppearance?: boolean;
-};
-export type Forecast = {
-  points: number | null;
-  low: number | null;
-  high: number | null;
-  games: number;
-  recent: number | null;
-  earlier: number | null;
-  receptionPoints: number | null;
-  history: GameSample[];
-  note: string;
-  baselinePoints?: number | null;
-  baselineHistory?: GameSample[];
-};
-export type ProjectedPlayer = Player & {
-  role?: RoleAssessment;
-  forecast: Forecast;
-  providerProjection: number | null;
-  providerPartial?: boolean;
+// Every projection is supplied by the league provider. No custom forecasts or role adjustments.
+export type AvailablePlayer = Player & {
   availability?: string;
   waiverDate?: number | null;
 };
 export type WaiverPick = {
-  player: ProjectedPlayer;
+  player: AvailablePlayer;
   gain: number | null;
   fills: string | null;
   reason: string;
 };
 export type InsightReport = {
-  league: Omit<League, 'players'> & { players: ProjectedPlayer[] };
-  candidates: ProjectedPlayer[];
-  historyThrough: string;
+  projectionSource: 'provider';
+  league: League;
+  candidates: AvailablePlayer[];
   fetchedAt: string;
   evaluated: number;
   warnings: string[];
-  model: string;
   ownershipVerified: boolean;
-  database?: {
-    provider: string;
-    rows: number;
-    players: number;
-    updatedAt: string;
-  }[];
 };
 const round = (n: number) => Math.round(n * 100) / 100;
-export function historyWeeks(
-  season: number,
-  week: number,
-  currentWeek: number,
-  count = 12,
-) {
-  let y = season,
-    w = Math.min(week, currentWeek) - 1;
-  return Array.from({ length: count }, () => {
-    if (w < 1) {
-      y--;
-      w = 18;
-    }
-    return { season: y, week: w-- };
-  });
-}
-export function project(
-  samples: GameSample[],
-  season: number,
-  week: number,
-  currentWeek: number,
-  receptionWeight = 0,
-): Forecast {
-  const window = new Set(
-    historyWeeks(season, week, currentWeek).map((s) => `${s.season}:${s.week}`),
-  );
-  const seen = new Set<string>();
-  const games = samples
-    .filter((s) => {
-      const key = `${s.season}:${s.week}`;
-      if (
-        !window.has(key) ||
-        seen.has(key) ||
-        s.played === false ||
-        !Number.isFinite(s.points)
-      )
-        return false;
-      seen.add(key);
-      return true;
-    })
-    .sort((a, b) => b.season - a.season || b.week - a.week)
-    .slice(0, 8);
-  const mean = (rows: GameSample[]) =>
-    rows.length
-      ? round(rows.reduce((v, g) => v + g.points, 0) / rows.length)
-      : null;
-  const base = {
-    games: games.length,
-    history: games,
-    recent: mean(games.slice(0, 3)),
-    earlier: mean(games.slice(3)),
-    receptionPoints: null,
-    low: null,
-    high: null,
-    points: null,
-  };
-  if (games.some((g) => g.partial))
-    return {
-      ...base,
-      note: 'An active scoring rule is not covered by the historical feed.',
-    };
-  if (games.length < 3)
-    return {
-      ...base,
-      note: `Insufficient history (${games.length}/3 games). Use the provider estimate and check the player’s role.`,
-    };
-  const weights = games.map((_, i) => 0.85 ** i),
-    sum = weights.reduce((a, b) => a + b, 0);
-  const sorted = games.map((g) => g.points).sort((a, b) => a - b);
-  return {
-    ...base,
-    points: round(
-      games.reduce((v, g, i) => v + g.points * weights[i], 0) / sum,
-    ),
-    low: sorted[Math.floor((sorted.length - 1) * 0.2)],
-    high: sorted[Math.ceil((sorted.length - 1) * 0.8)],
-    receptionPoints: round(
-      games.reduce(
-        (v, g, i) => v + (g.receptions ?? 0) * receptionWeight * weights[i],
-        0,
-      ) / sum,
-    ),
-    note:
-      games.length < 6
-        ? 'Small sample. Treat this estimate with extra caution.'
-        : 'Recent games carry more weight; current matchup and role changes are not modeled.',
-  };
-}
-export function applyForecast(
-  player: Player,
-  forecast: Forecast,
-  role?: RoleAssessment,
-): ProjectedPlayer {
-  return {
-    ...player,
-    providerProjection: player.projection,
-    providerPartial: player.partial,
-    forecast,
-    role,
-    modelExcluded: role?.excluded,
-    modelExclusionReason: role?.excluded ? role.detail : undefined,
-    projection: player.bye ? 0 : forecast.points,
-    partial: forecast.points === null,
-  };
-}
 export function rankWaivers(
   report: InsightReport,
   now = Date.now(),
 ): WaiverPick[] {
   const { league } = report;
   if (
+    report.projectionSource !== 'provider' ||
     !report.ownershipVerified ||
     !Number.isFinite(Date.parse(report.fetchedAt)) ||
     now - Date.parse(report.fetchedAt) > 300000 ||
+    Date.parse(report.fetchedAt) > now + 60000 ||
     league.stale ||
     league.error ||
     league.week !== league.currentWeek ||
@@ -192,9 +50,8 @@ export function rankWaivers(
       !isLocked(p, now) &&
       p.locked === false &&
       p.projection !== null &&
+      Number.isFinite(p.projection) &&
       !p.partial &&
-      (!p.role ||
-        (p.role.verified && !p.role.excluded && p.role.compatibleGames >= 3)) &&
       !(
         p.waiverDate != null &&
         p.kickoff !== null &&
@@ -249,7 +106,7 @@ export function rankWaivers(
               ? `Could cover an empty ${chosen.slot.label} slot.`
               : gain === null
                 ? chosen
-                  ? `Could compete for ${chosen.slot.label}; incomplete roster forecasts prevent a reliable total-gain estimate.`
+                  ? `Could compete for ${chosen.slot.label}; incomplete provider projections prevent a reliable total-gain estimate.`
                   : 'Depth option. A reliable lineup-gain estimate is unavailable with this roster’s data or slot limits.'
                 : 'Depth option. No starting improvement under the current lineup constraints.',
       };

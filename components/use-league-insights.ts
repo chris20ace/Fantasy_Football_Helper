@@ -40,6 +40,10 @@ export function useLeagueInsights(
         };
         if (!response.ok)
           throw new Error(result.error ?? 'Recommendations could not load.');
+        if (result.projectionSource !== 'provider')
+          throw new Error(
+            'Reload the app to load current provider projections.',
+          );
         if (!controller.signal.aborted) setReport(result);
       } catch (e) {
         if (!controller.signal.aborted)

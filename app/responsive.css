@@ -314,15 +314,6 @@ html {
 .desk .insight-caution p {
   margin: 0 0 14px;
 }
-.desk .insight-model-card h2 {
-  line-height: 1.3;
-}
-.desk .model-lineup-grid > div {
-  grid-template-columns: 44px minmax(0, 1fr) auto;
-}
-.desk .model-lineup-grid strong {
-  overflow-wrap: anywhere;
-}
 .desk .lab-toolbar .league-select {
   flex: 1;
   max-width: 580px;
@@ -361,9 +352,6 @@ html {
 .desk .insight-table td,
 .desk .insight-table th {
   overflow-wrap: anywhere;
-}
-.desk .player-history {
-  width: auto;
 }
 .desk .league-chips button {
   white-space: normal;
@@ -444,9 +432,6 @@ html {
   }
   .desk .insight-scoreboard {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .desk .insight-model-card {
-    grid-column: 1 / -1;
   }
   .desk .feature-score {
     display: none;
@@ -545,12 +530,6 @@ html {
     grid-column: 1 / -1;
     grid-row: 1;
   }
-  .desk .player-history summary {
-    padding-top: 0;
-  }
-  .desk .player-history summary strong {
-    font-size: 16px;
-  }
 }
 @container dashboard (max-width: 720px) {
   .desk .page-heading {
@@ -560,8 +539,7 @@ html {
   .desk .stat-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-  .desk .lab-insights,
-  .desk .model-lineup-grid {
+  .desk .lab-insights {
     grid-template-columns: 1fr;
   }
   .desk .insight-toolbar,
@@ -770,9 +748,6 @@ html {
   }
   .desk .lab-banner .lab-totals b {
     font-size: 30px;
-  }
-  .desk .insight-model-card {
-    padding: 22px;
   }
   .desk .insight-metric {
     padding: 16px;

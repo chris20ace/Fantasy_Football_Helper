@@ -249,9 +249,6 @@ export default function FantasyDashboard({
     [view, setView] = useState<View>('overview'),
     [selected, setSelected] = useState(''),
     [now, setNow] = useState(() => Date.now());
-  const [comparisonSource, setComparisonSource] = useState<
-    'model' | 'provider'
-  >('model');
   const [preferences, setPreferences] = useState<Preferences>({
       notes: {},
       reviewed: {},
@@ -505,7 +502,7 @@ export default function FantasyDashboard({
                 {view === 'overview'
                   ? 'Set your best supported lineup, then find additions that could improve it.'
                   : view === 'lab'
-                    ? 'Sunday Desk’s picks for your starters, using league scoring and verified playing roles.'
+                    ? 'Your recommended starters, using provider projections and your league’s scoring.'
                     : view === 'portfolio'
                       ? 'See which players you own and start in each league.'
                       : view === 'insights'
@@ -632,8 +629,6 @@ export default function FantasyDashboard({
                     now={now}
                     blocked={!!error}
                     onOpen={setView}
-                    comparisonSource={comparisonSource}
-                    onComparisonSource={setComparisonSource}
                     onRefresh={() => void load(true)}
                   />
                   <details className="all-leagues-details">
@@ -901,15 +896,11 @@ export default function FantasyDashboard({
                     now={now}
                     blocked={!!error}
                     onOpen={setView}
-                    comparisonSource={comparisonSource}
-                    onComparisonSource={setComparisonSource}
                     onRefresh={() => void load(true)}
                     mode="lineup"
                   />
                   <details className="provider-tools">
-                    <summary>
-                      Provider comparison, bench, standings & notes
-                    </summary>
+                    <summary>Bench, standings & notes</summary>
                     {active && (
                       <LineupLab
                         league={active}
@@ -965,8 +956,6 @@ export default function FantasyDashboard({
                     now={now}
                     blocked={!!error}
                     onOpen={setView}
-                    comparisonSource={comparisonSource}
-                    onComparisonSource={setComparisonSource}
                     onRefresh={() => void load(true)}
                     mode="matchup"
                   />
@@ -1903,8 +1892,8 @@ function Connections({
         </p>
         <p>
           <strong>Sleeper:</strong> supplemental Rotowire projections, scored
-          with your league settings. Missing or unmodeled stats may make an
-          estimate incomplete.
+          with your league settings. Missing or unsupported scoring stats may
+          make an estimate incomplete.
         </p>
         <p>
           <strong>Game locks:</strong> ESPN roster locks and scheduled NFL
@@ -1917,9 +1906,8 @@ function Connections({
           update the saved session.
         </p>
         <p className="tiny">
-          Insights & waivers creates independent, league-scored estimates from
-          past games and checks unrostered candidates. It does not submit lineup
-          changes, claim waivers, or execute trades.
+          Lineup, waiver and matchup recommendations use your provider’s
+          projected points under your league’s scoring settings.
         </p>
         <a
           className="text-link"

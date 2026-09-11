@@ -18,8 +18,6 @@ export type Player = {
   reserve: boolean;
   taxi: boolean;
   // A verified NFL role exclusion is distinct from an injury or missing data.
-  modelExcluded?: boolean;
-  modelExclusionReason?: string;
 };
 export type Slot = { id: string; key: string; label: string };
 export type Standing = {

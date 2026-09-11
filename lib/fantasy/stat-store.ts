@@ -1,5 +1,4 @@
 import { getPool } from '../accounts/db.ts';
-import type { DepthTeam } from './roles.ts';
 export type StatRecord = {
   provider: 'espn' | 'sleeper';
   player_id: string;
@@ -121,22 +120,6 @@ export async function readWeekStats(
       [provider, season, week],
     )
   ).rows;
-}
-export async function saveDepth(team: DepthTeam) {
-  await getPool().query(
-    `insert into sunday_desk.nfl_depth_snapshot(team,season,snapshot,checked_at) values($1,$2,$3,$4) on conflict(provider,team,season) do update set snapshot=excluded.snapshot,checked_at=excluded.checked_at`,
-    [team.team, team.season, JSON.stringify(team), team.checkedAt],
-  );
-}
-export async function readDepth(
-  team: string,
-  season: number,
-): Promise<DepthTeam | undefined> {
-  const r = await getPool().query<{ snapshot: DepthTeam }>(
-    "select snapshot from sunday_desk.nfl_depth_snapshot where team=$1 and season=$2 and snapshot->>'parserVersion'='2' and checked_at > now()-interval '5 minutes'",
-    [team, season],
-  );
-  return r.rows[0]?.snapshot;
 }
 export async function statStoreSummary() {
   const result = await getPool().query<{
