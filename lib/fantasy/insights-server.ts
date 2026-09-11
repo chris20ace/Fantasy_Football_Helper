@@ -3,6 +3,7 @@
 import { loadWorkspace, readCache, saveCache } from '#dashboard-runtime';
 import {
   cached,
+  addGameStatuses,
   catalog,
   espnPlayer,
   fromESPN,
@@ -33,7 +34,7 @@ export async function getInsights(
   );
   if (!connection || !target)
     throw new Error('League is not connected to this workspace.');
-  const key = `insights-provider-v1:${userId}:${workspace.revision}:${leagueId}:${target.season}:${week}`;
+  const key = `insights-points-v2:${userId}:${workspace.revision}:${leagueId}:${target.season}:${week}`;
   const old = await readCache(key, userId);
   if (old && Date.now() - old.updated < (refresh ? 20000 : 180000))
     return JSON.parse(old.value);
@@ -45,7 +46,11 @@ export async function getInsights(
   const proData = await cached(`schedule:${season}`, 3600000, () =>
     json(`${ESPN}/${season}?view=proTeamSchedules_wl`),
   );
-  const proTeams = proData.settings?.proTeams ?? [];
+  const proTeams = await addGameStatuses(
+    proData.settings?.proTeams ?? [],
+    season,
+    week,
+  );
   const warnings: string[] = [];
   let league = initial;
   let candidates: AvailablePlayer[] = [],

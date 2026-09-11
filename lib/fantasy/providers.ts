@@ -1,6 +1,7 @@
 /* Provider payloads are normalized here; account owners and credentials never leave this boundary. */
 /* oxlint-disable typescript/no-explicit-any */
 import { scoreSleeper } from './scoring.ts';
+import type { GameStatus } from './points.ts';
 import type { League, Player, Slot, Standing } from './types.ts';
 type Raw = Record<string, any>;
 const numeric = (n: unknown): number | null =>
@@ -55,6 +56,9 @@ export function gameInfo(team: string, proTeams: Raw[], week: number) {
       : null;
   return {
     bye: pro?.byeWeek === week,
+    gameStatus: (pro?.byeWeek === week
+      ? 'bye'
+      : (game?.gameStatus ?? 'unknown')) as GameStatus,
     kickoff:
       game && !game.startTimeTBD && game.validForLocking !== false
         ? numeric(game.date)

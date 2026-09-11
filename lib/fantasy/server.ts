@@ -1,6 +1,7 @@
 /* Upstream providers return polymorphic JSON. This boundary normalizes it into strict League/Player types. */
 /* oxlint-disable typescript/no-explicit-any */
 import { fromESPN, fromSleeper } from './providers.ts';
+import { gameStatuses } from './game-status.ts';
 export {
   fromESPN,
   fromSleeper,
@@ -53,6 +54,46 @@ export async function cached(
   const value = await fn();
   await saveCache(key, value);
   return value;
+}
+
+export async function addGameStatuses(
+  proTeams: Raw[],
+  season: number,
+  week: number,
+) {
+  let states: ReturnType<typeof gameStatuses> = {};
+  try {
+    const board = await cached(
+      `nfl-game-status-v1:${season}:${week}`,
+      60000,
+      () =>
+        json(
+          `https://site.web.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?region=us&lang=en&contentorigin=espn&limit=100&dates=${season}&week=${week}&seasontype=2`,
+        ),
+    );
+    states = gameStatuses(board, season, week);
+  } catch {
+    /* Unknown status stays unknown; never infer a final from kickoff. */
+  }
+  return proTeams.map((team) => ({
+    ...team,
+    proGamesByScoringPeriod: {
+      ...team.proGamesByScoringPeriod,
+      [String(week)]: (team.proGamesByScoringPeriod?.[String(week)] ?? []).map(
+        (game: Raw) => {
+          const state = states[String(game.id)];
+          return {
+            ...game,
+            gameStatus:
+              state?.home === String(game.homeProTeamId) &&
+              state?.away === String(game.awayProTeamId)
+                ? state.status
+                : 'unknown',
+          };
+        },
+      ),
+    },
+  }));
 }
 
 // The full player catalog is streamed one entry at a time to stay within Workers memory limits.
@@ -137,7 +178,7 @@ export async function getDashboard(
     '';
   const espn = workspace.connections.find((c) => c.provider === 'espn');
   const namespace =
-    'user-provider-v1:' + encodeURIComponent(userId) + ':' + workspace.revision;
+    'user-points-v2:' + encodeURIComponent(userId) + ':' + workspace.revision;
   if (!configured.length)
     return {
       season: new Date().getFullYear(),
@@ -188,7 +229,11 @@ export async function getDashboard(
   const proData = await shared(`schedule:${season}`, 3600000, () =>
     json(`${ESPN}/${season}?view=proTeamSchedules_wl`),
   );
-  const proTeams = proData.settings?.proTeams ?? [];
+  const proTeams = await addGameStatuses(
+    proData.settings?.proTeams ?? [],
+    season,
+    week,
+  );
   const s2 = espn?.credentials?.s2,
     swid = espn?.credentials?.swid ?? '',
     cookie = s2 && swid ? `espn_s2=${s2}; SWID=${swid}` : undefined;

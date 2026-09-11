@@ -1,3 +1,4 @@
+import type { GameStatus } from './points.ts';
 export type Platform = 'espn' | 'sleeper';
 export type Player = {
   id: string;
@@ -13,11 +14,11 @@ export type Player = {
   injury: string;
   bye: boolean;
   kickoff: number | null;
+  gameStatus: GameStatus;
   opponent: string;
   locked: boolean | null;
   reserve: boolean;
   taxi: boolean;
-  // A verified NFL role exclusion is distinct from an injury or missing data.
 };
 export type Slot = { id: string; key: string; label: string };
 export type Standing = {

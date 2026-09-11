@@ -1,16 +1,28 @@
 import type { Analysis, League, Player } from './types';
+import { playerPoints } from './points.ts';
 export const unavailable = (p: Player) =>
+  p.gameStatus === 'canceled' ||
+  p.gameStatus === 'postponed' ||
   p.bye ||
   /^(OUT|IR|INJURY_RESERVE|SUSPENDED|PUP|DNR|NA)$/i.test(p.injury) ||
   p.reserve ||
   p.taxi;
 export function isLocked(p: Player, now = Date.now()) {
-  return p.locked === true || (p.kickoff !== null && p.kickoff <= now);
+  return (
+    p.gameStatus === 'live' ||
+    p.gameStatus === 'final' ||
+    p.locked === true ||
+    (p.kickoff !== null && p.kickoff <= now)
+  );
 }
-export function total(players: (Player | null)[]): number | null {
-  return players.some((p) => !p || p.projection === null || p.partial)
+export function total(
+  players: (Player | null)[],
+  now = Date.now(),
+): number | null {
+  const values = players.map((p) => playerPoints(p, now).value);
+  return values.some((v) => v === null)
     ? null
-    : players.reduce((sum, p) => sum + p!.projection!, 0);
+    : values.reduce<number>((sum, v) => sum + v!, 0);
 }
 export function analyze(league: League, now = Date.now()): Analysis {
   const current = league.slots.map(
@@ -36,13 +48,18 @@ export function analyze(league: League, now = Date.now()): Analysis {
             {
               player: p,
               slot: league.slots[i].label,
-              reason: p.bye
-                ? 'Bye week'
-                : p.reserve
-                  ? 'On injured reserve'
-                  : p.taxi
-                    ? 'On taxi squad'
-                    : `Unavailable · ${p.injury.replaceAll('_', ' ')}`,
+              reason:
+                p.gameStatus === 'canceled'
+                  ? 'Game canceled'
+                  : p.gameStatus === 'postponed'
+                    ? 'Game postponed'
+                    : p.bye
+                      ? 'Bye week'
+                      : p.reserve
+                        ? 'On injured reserve'
+                        : p.taxi
+                          ? 'On taxi squad'
+                          : `Unavailable · ${p.injury.replaceAll('_', ' ')}`,
             },
           ]
         : /QUESTIONABLE|DOUBTFUL|DAY_TO_DAY/i.test(p.injury)
@@ -75,7 +92,8 @@ export function analyze(league: League, now = Date.now()): Analysis {
       !p.reserve &&
       !p.taxi &&
       !unavailable(p) &&
-      (p.projection === null || p.partial),
+      !isLocked(p, now) &&
+      playerPoints(p, now).value === null,
   );
   if (unknown.length)
     reasons.push(
@@ -86,7 +104,7 @@ export function analyze(league: League, now = Date.now()): Analysis {
       !!p &&
       (isLocked(p, now) ||
         p.locked === null ||
-        (!unavailable(p) && (p.projection === null || p.partial))),
+        (!unavailable(p) && playerPoints(p, now).value === null)),
   );
   if (current.some((p) => p?.locked === null))
     reasons.push('Unknown game lock: current starter held in place.');
@@ -100,8 +118,8 @@ export function analyze(league: League, now = Date.now()): Analysis {
         !unavailable(p) &&
         !isLocked(p, now) &&
         p.locked !== null &&
-        p.projection !== null &&
-        !p.partial,
+        playerPoints(p, now).basis === 'projection' &&
+        playerPoints(p, now).value !== null,
     );
     type State = { score: number; changes: number; ids: (Player | null)[] };
     let dp = new Map<number, State>([
@@ -152,8 +170,8 @@ export function analyze(league: League, now = Date.now()): Analysis {
   }
   const existing = new Set(current.filter(Boolean).map((p) => p!.id)),
     recommended = new Set(result.filter(Boolean).map((p) => p!.id));
-  const currentTotal = total(current),
-    recommendedTotal = total(result);
+  const currentTotal = total(current, now),
+    recommendedTotal = total(result, now);
   return {
     assignments: league.slots.map((slot, i) => ({
       slot,
@@ -174,7 +192,9 @@ export function analyze(league: League, now = Date.now()): Analysis {
       enabled &&
       unknown.length === 0 &&
       recommendedTotal !== null &&
-      !league.players.some((p) => p.locked === null && !unavailable(p)),
+      !league.players.some(
+        (p) => p.locked === null && !isLocked(p, now) && !unavailable(p),
+      ),
     enabled,
     reasons,
   };

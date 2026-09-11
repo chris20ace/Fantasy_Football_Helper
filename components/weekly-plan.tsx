@@ -9,7 +9,6 @@ import {
   LockKeyhole,
   RefreshCw,
   Target,
-  Trophy,
   Zap,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -20,31 +19,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { analyze, isLocked, unavailable } from '@/lib/fantasy/analysis';
+import { analyze, unavailable } from '@/lib/fantasy/analysis';
 import { rankWaivers } from '@/lib/fantasy/projections';
 import { analyzeMatchup } from '@/lib/fantasy/matchup';
-import type { League, Player } from '@/lib/fantasy/types';
+import type { League } from '@/lib/fantasy/types';
+import MatchupView from './matchup-view';
+import PlayerScore from './player-score';
+import { gameLabel, playerPoints, scoreProgress } from '@/lib/fantasy/points';
 import type { LeagueInsightsState } from './use-league-insights';
 
 const pts = (value: number | null | undefined) =>
   value == null ? '—' : value.toFixed(1);
-const delta = (value: number | null | undefined) =>
-  value == null
-    ? 'Not enough data'
-    : `${value > 0 ? '+' : ''}${pts(value)} pts`;
-const gameTime = (p: Player, now: number) =>
-  p.bye
-    ? 'Bye week'
-    : isLocked(p, now)
-      ? 'Locked · game started or provider lock'
-      : p.kickoff
-        ? new Date(p.kickoff).toLocaleString([], {
-            weekday: 'short',
-            hour: 'numeric',
-            minute: '2-digit',
-          })
-        : 'Kickoff unconfirmed';
-
 export default function WeeklyPlan({
   leagues,
   selected,
@@ -91,7 +76,6 @@ export default function WeeklyPlan({
     () => (report && !stale ? rankWaivers(report, now) : []),
     [report, stale, now],
   );
-  const comparisonLabel = 'Projected';
   const matchup = useMemo(
     () =>
       report
@@ -118,6 +102,12 @@ export default function WeeklyPlan({
     .filter((p) => p.fills && (p.gain === null || p.gain > 0))
     .slice(0, 3);
   const shownPicks = picks.length ? picks : waivers.slice(0, 3);
+  const lineupFinal = analysis
+    ? scoreProgress(
+        analysis.assignments.map((r) => r.current),
+        now,
+      ).allFinal
+    : false;
   const copy = async () => {
     if (!report || !analysis?.enabled) return;
     try {
@@ -211,18 +201,22 @@ export default function WeeklyPlan({
                   <h2>
                     {!analysis.enabled
                       ? 'Lineup advice is paused'
-                      : moves.length
-                        ? `${moves.length} ${moves.length === 1 ? 'slot change' : 'slot changes'} to review`
-                        : analysis.complete
-                          ? 'Your best projected lineup is already set'
-                          : 'Review your lineup’s missing data'}
+                      : lineupFinal
+                        ? 'Your lineup is final'
+                        : moves.length
+                          ? `${moves.length} ${moves.length === 1 ? 'slot change' : 'slot changes'} to review`
+                          : analysis.complete
+                            ? 'Your best projected lineup is already set'
+                            : 'Review your lineup’s missing data'}
                   </h2>
                   <p>
                     {!analysis.enabled
                       ? analysis.reasons[0]
-                      : analysis.complete
-                        ? 'The highest projected legal combination using your league provider’s points, with game locks respected.'
-                        : 'The best supported combination among evaluated players. Players with missing projections or unknown locks stay held for review.'}
+                      : lineupFinal
+                        ? 'Your starters have finished. Their actual points are shown below.'
+                        : analysis.complete
+                          ? 'The highest projected legal combination using your league provider’s points, with game locks respected.'
+                          : 'The best supported combination among evaluated players. Players with missing projections or unknown locks stay held for review.'}
                   </p>
                 </div>
                 {(analysis.currentTotal !== null ||
@@ -254,8 +248,8 @@ export default function WeeklyPlan({
                 <small>
                   {analysis.currentTotal === null &&
                   analysis.recommendedTotal === null
-                    ? 'Some starter estimates are missing, so full-lineup totals are withheld.'
-                    : 'Provider projections for whole games; actual scores are shown separately.'}{' '}
+                    ? 'Some starter scores or projections are missing, so totals are pending.'
+                    : 'Actual points for played and live games + projections for upcoming games. Live players can still score.'}{' '}
                   · {report.league.scoring} · {report.league.source}
                 </small>
               </div>
@@ -277,8 +271,8 @@ export default function WeeklyPlan({
                       <p className="muted">
                         {starters} / {report.league.slots.length} slots filled ·{' '}
                         {analysis.complete
-                          ? 'All roster projections evaluated'
-                          : 'Some provider projections are missing'}
+                          ? 'All required scores available'
+                          : 'Some scores or projections are pending'}
                         {analysis.issues.length > 0 &&
                           ` · ${analysis.issues.length} lineup alerts`}
                       </p>
@@ -327,7 +321,9 @@ export default function WeeklyPlan({
                           {analysis.complete ? <Check /> : <CircleAlert />}
                           <p>
                             {analysis.complete
-                              ? 'Keep your current starters. Check injuries again before kickoff.'
+                              ? lineupFinal
+                                ? 'All starters have finished. Their actual points are shown below.'
+                                : 'Keep your current starters. Check injuries again before kickoff.'
                               : analysis.enabled
                                 ? 'No supported swaps found. Open your lineup to review held players and missing estimates.'
                                 : 'Choose the current week and refresh to get lineup recommendations.'}
@@ -357,8 +353,7 @@ export default function WeeklyPlan({
                           const needsReview =
                             !p ||
                             unavailable(p) ||
-                            p.projection === null ||
-                            p.partial ||
+                            playerPoints(p, now).value === null ||
                             p.locked === null;
                           const monitor =
                             !!p &&
@@ -405,7 +400,7 @@ export default function WeeklyPlan({
                                       : 'Fills an empty slot'}
                                   </p>
                                 )}
-                                {p && <small>{gameTime(p, now)}</small>}
+                                {p && <small>{gameLabel(p, now)}</small>}
                                 {p && unavailable(p) && (
                                   <small className="starter-alert">
                                     {p.bye
@@ -420,8 +415,7 @@ export default function WeeklyPlan({
                                 )}
                               </div>
                               <div className="starter-points">
-                                <b>{pts(p?.projection)}</b>
-                                <small>projected pts</small>
+                                <PlayerScore player={p} now={now} />
                               </div>
                             </li>
                           );
@@ -464,9 +458,10 @@ export default function WeeklyPlan({
                           <p key={r}>{r}</p>
                         ))}
                         <p>
-                          Projections come from {report.league.source} under
-                          this league’s scoring. Missing estimates and unknown
-                          locks stay held for review. Actual results can differ.
+                          Actuals and projections come from{' '}
+                          {report.league.source} under this league’s scoring.
+                          Missing estimates and unknown locks stay held for
+                          review. Actual results can differ.
                         </p>
                       </details>
                     </>
@@ -506,7 +501,7 @@ export default function WeeklyPlan({
                             <p>{pick.reason}</p>
                             <small>
                               {pts(pick.player.projection)} projected pts ·{' '}
-                              {gameTime(pick.player, now)}
+                              {gameLabel(pick.player, now)}
                             </small>
                           </li>
                         ))}
@@ -537,179 +532,14 @@ export default function WeeklyPlan({
             </>
           )}
           {(mode === 'plan' || mode === 'matchup') && (
-            <section className="panel matchup-panel">
-              <div className="section-head">
-                <div>
-                  <span className="plan-kicker">
-                    <Trophy size={16} /> THIS WEEK’S MATCHUP
-                  </span>
-                  <h2>
-                    {report.league.teamName}{' '}
-                    <span className="matchup-versus">vs</span>{' '}
-                    {report.league.opponent?.name ?? 'No scheduled opponent'}
-                  </h2>
-                </div>
-                {mode === 'plan' && (
-                  <Button variant="outline" onClick={() => onOpen('matchup')}>
-                    Analyze matchup <ArrowRight size={16} />
-                  </Button>
-                )}
-              </div>
-              <p className="muted">
-                Both teams use {report.league.source} · {report.league.scoring}.
-              </p>
-              <div className="matchup-numbers">
-                <div>
-                  <span>Your reported score</span>
-                  <b>{pts(report.league.actual)}</b>
-                </div>
-                <div>
-                  <span>Opponent’s reported score</span>
-                  <b>{pts(report.league.opponent?.actual)}</b>
-                </div>
-                <div>
-                  <span>
-                    Current lineup · {comparisonLabel.toLowerCase()} edge
-                  </span>
-                  <b
-                    className={
-                      matchup.submittedEdge !== null &&
-                      matchup.submittedEdge > 0
-                        ? 'positive'
-                        : ''
-                    }
-                  >
-                    {delta(matchup.submittedEdge)}
-                  </b>
-                </div>
-                <div>
-                  <span>After recommended changes</span>
-                  <b>{delta(matchup.suggestedEdge)}</b>
-                </div>
-              </div>
-              <p className="muted">
-                {!matchup.available
-                  ? matchup.reason
-                  : matchup.submittedEdge === null
-                    ? `${comparisonLabel} coverage: you ${matchup.coverage.mine}/${matchup.coverage.slots}, opponent ${matchup.coverage.theirs}/${matchup.coverage.slots}. Missing starter estimates prevent a reliable overall edge.`
-                    : `Your current lineup: ${pts(matchup.submitted)} ${comparisonLabel.toLowerCase()} points. Opponent’s submitted lineup: ${pts(matchup.opposing)}. ${matchup.submittedEdge > 0 ? 'You have the projected edge.' : matchup.submittedEdge < 0 ? 'You trail on projected points.' : 'The estimates have this matchup even.'}`}
-              </p>
-              <p className="matchup-disclaimer">
-                {comparisonLabel} estimates cover whole games; they are separate
-                from live scores and are not a win probability. The opponent’s
-                submitted lineup can change.
-              </p>
-              {mode === 'matchup' && matchup.available && (
-                <>
-                  <div className="matchup-takeaways">
-                    <div>
-                      <strong>Your clearest edge</strong>
-                      <p>
-                        {matchup.strongest
-                          ? `${matchup.strongest.label}: ${delta(matchup.strongest.edge)} versus their submitted starters.`
-                          : 'No confirmed positional edge with the available estimates.'}
-                      </p>
-                    </div>
-                    <div>
-                      <strong>Where you need help</strong>
-                      <p>
-                        {matchup.weakest
-                          ? `${matchup.weakest.label}: ${delta(matchup.weakest.edge)}. Review lineup and waiver options at this position.`
-                          : 'No confirmed positional deficit with the available estimates.'}
-                      </p>
-                    </div>
-                    <div>
-                      <strong>Games still to start</strong>
-                      <p>
-                        You: {matchup.notStarted.mine} starters · Opponent:{' '}
-                        {matchup.notStarted.theirs}. Game start does not mean a
-                        player has finished.
-                      </p>
-                    </div>
-                  </div>
-                  <h3>Position-by-position comparison</h3>
-                  <p className="muted">
-                    Submitted starters, grouped by lineup slot. Positive values
-                    favor your team.
-                  </p>
-                  <div className="position-edges">
-                    {matchup.groups.map((group) => (
-                      <article key={group.label}>
-                        <strong>
-                          {group.label}
-                          {group.count > 1 ? ` × ${group.count}` : ''}
-                        </strong>
-                        <span>
-                          You <b>{pts(group.mine)}</b>
-                        </span>
-                        <span>
-                          Them <b>{pts(group.theirs)}</b>
-                        </span>
-                        <b
-                          className={
-                            group.edge !== null && group.edge > 0
-                              ? 'positive'
-                              : ''
-                          }
-                        >
-                          {delta(group.edge)}
-                        </b>
-                      </article>
-                    ))}
-                  </div>
-                  {!!matchup.threats.length && (
-                    <div className="opponent-threats">
-                      <h3>Opponent players to watch</h3>
-                      {matchup.threats.map((p) => (
-                        <p key={p.id}>
-                          <strong>{p.name}</strong> · {p.position} ·{' '}
-                          {pts(p.projection)} {comparisonLabel.toLowerCase()}{' '}
-                          pts · {gameTime(p, now)}
-                        </p>
-                      ))}
-                    </div>
-                  )}
-                  <details className="plan-evidence">
-                    <summary>Compare every starting slot</summary>
-                    <div className="matchup-players">
-                      {matchup.rows.map((row) => (
-                        <article key={row.slot.id}>
-                          <span className="slot-badge">{row.slot.label}</span>
-                          <div>
-                            <small>Your starter</small>
-                            <strong>{row.mine?.name ?? 'Empty slot'}</strong>
-                            <span>
-                              {pts(row.mine?.projection)}{' '}
-                              {comparisonLabel.toLowerCase()} pts
-                            </span>
-                          </div>
-                          <div>
-                            <small>Opponent’s starter</small>
-                            <strong>{row.theirs?.name ?? 'Empty slot'}</strong>
-                            <span>
-                              {pts(row.theirs?.projection)}{' '}
-                              {comparisonLabel.toLowerCase()} pts
-                            </span>
-                          </div>
-                        </article>
-                      ))}
-                    </div>
-                  </details>
-                  <div className="matchup-actions">
-                    <Button onClick={() => onOpen('lab')}>
-                      Review recommended lineup <ArrowRight size={16} />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => onOpen('insights')}
-                    >
-                      Find waiver help
-                    </Button>
-                  </div>
-                </>
-              )}
-            </section>
-          )}
+            <MatchupView
+              report={report}
+              matchup={matchup}
+              now={now}
+              compact={mode === 'plan'}
+              onOpen={onOpen}
+            />
+          )}{' '}
         </>
       )}
     </section>

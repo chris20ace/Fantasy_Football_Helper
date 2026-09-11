@@ -1,5 +1,6 @@
 import { analyze, isLocked, unavailable } from './analysis.ts';
 import type { League, Player } from './types.ts';
+import { playerPoints } from './points.ts';
 
 // Every projection is supplied by the league provider. No custom forecasts or role adjustments.
 export type AvailablePlayer = Player & {
@@ -49,6 +50,8 @@ export function rankWaivers(
       !unavailable(p) &&
       !isLocked(p, now) &&
       p.locked === false &&
+      playerPoints(p, now).basis === 'projection' &&
+      playerPoints(p, now).value !== null &&
       p.projection !== null &&
       Number.isFinite(p.projection) &&
       !p.partial &&

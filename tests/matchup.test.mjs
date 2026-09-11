@@ -170,12 +170,40 @@ void test('old caches and missing or unverified opponents do not fabricate a com
   r.league.opponent = null;
   assert.match(analyzeMatchup(r, now).reason, /No head-to-head opponent/);
 });
-void test('started counts do not infer finished games or use bench kickoff times', () => {
+void test('unknown started status stays pending rather than inferring a final or retaining a projection', () => {
   const r = report();
   r.league.players[0].kickoff = now - 1000;
   r.league.opponent.players[0].kickoff = null;
   const m = analyzeMatchup(r, now);
   assert.deepEqual(m.notStarted, { mine: 1, theirs: 1 });
-  assert.equal(m.submitted, 18);
+  assert.equal(m.submitted, null);
   assert.equal('finished' in m, false);
+});
+void test('matchup totals and position edges count live/final actuals once plus upcoming projections', () => {
+  const r = report();
+  Object.assign(r.league.players[0], {
+    gameStatus: 'final',
+    kickoff: now - 1000,
+    actual: 4,
+    projection: null,
+    partial: true,
+  });
+  Object.assign(r.league.opponent.players[0], {
+    gameStatus: 'live',
+    kickoff: now - 1000,
+    actual: 0,
+    projection: 50,
+  });
+  const m = analyzeMatchup(r, now);
+  assert.equal(m.submitted, 12);
+  assert.equal(m.suggested, 19);
+  assert.equal(m.opposing, 9);
+  assert.equal(m.submittedEdge, 3);
+  assert.equal(m.groups[0].edge, 4);
+  assert.equal(m.coverage.mine, 2);
+  assert.equal(
+    m.liveEdge,
+    10,
+    'Reported team scores remain separate and are not added to player totals',
+  );
 });

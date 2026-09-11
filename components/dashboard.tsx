@@ -3,6 +3,8 @@ import SetupLink from './setup-link';
 import SignOut from './sign-out';
 import Insights from './insights';
 import WeeklyPlan from './weekly-plan';
+import PlayerScore from './player-score';
+import { gameLabel, playerPoints } from '@/lib/fantasy/points';
 import { useLeagueInsights } from './use-league-insights';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -220,20 +222,15 @@ function PlayerName({
   );
 }
 function Kickoff({ player, now }: { player: Player; now: number }) {
-  return isLocked(player, now) ? (
-    <span className="lock-label">
-      <LockKeyhole size={11} />
-      Locked
+  return (
+    <span className={isLocked(player, now) ? 'lock-label' : 'kickoff'}>
+      {isLocked(player, now) && <LockKeyhole size={11} />}
+      {gameLabel(player, now)}
+      {player.locked === true &&
+      playerPoints(player, now).basis === 'projection'
+        ? ' · roster locked'
+        : ''}
     </span>
-  ) : player.bye ? (
-    <span className="muted">Bye week</span>
-  ) : player.kickoff ? (
-    <span className="kickoff">
-      {new Date(player.kickoff).toLocaleDateString([], { weekday: 'short' })}{' '}
-      {time(player.kickoff)}
-    </span>
-  ) : (
-    <span className="muted">Time unconfirmed</span>
   );
 }
 
@@ -1446,7 +1443,7 @@ function LineupLab({
                 </div>
                 <p className="muted">
                   {actionable
-                    ? 'Compare provider point estimates below. Apply the full suggested lineup in your league app, including FLEX moves.'
+                    ? 'Played and live games show actual points; upcoming games show projections. Apply the full suggested lineup in your league app, including FLEX moves.'
                     : 'Choose the current week and refresh successfully to compare suggested starters.'}
                 </p>
                 <Table
@@ -1457,11 +1454,11 @@ function LineupLab({
                     <TableRow>
                       <TableHead>Slot</TableHead>
                       <TableHead>Current starter</TableHead>
-                      <TableHead className="points-col">Est. pts</TableHead>
+                      <TableHead className="points-col">Points</TableHead>
                       <TableHead>
                         {actionable ? 'Suggested starter' : 'Reference'}
                       </TableHead>
-                      <TableHead className="points-col">Est. pts</TableHead>
+                      <TableHead className="points-col">Points</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -1486,11 +1483,10 @@ function LineupLab({
                             )}
                           </TableCell>
                           <TableCell
-                            data-label="Current est. pts"
+                            data-label="Current points"
                             className="points-col"
                           >
-                            {row.current?.partial ? '~' : ''}
-                            {number(row.current?.projection)}
+                            <PlayerScore player={row.current} now={now} />
                           </TableCell>
                           <TableCell data-label="Suggested starter / status">
                             {changed ? (
@@ -1526,12 +1522,14 @@ function LineupLab({
                             )}
                           </TableCell>
                           <TableCell
-                            data-label="Suggested est. pts"
+                            data-label="Suggested points"
                             className="points-col"
                           >
-                            {changed
-                              ? number(row.recommended?.projection)
-                              : '—'}
+                            {changed ? (
+                              <PlayerScore player={row.recommended} now={now} />
+                            ) : (
+                              '—'
+                            )}
                           </TableCell>
                         </TableRow>
                       );
@@ -1566,8 +1564,7 @@ function LineupLab({
                     <TableRow>
                       <TableHead>Player</TableHead>
                       <TableHead>Game lock</TableHead>
-                      <TableHead className="points-col">Est. pts</TableHead>
-                      <TableHead className="points-col">Actual</TableHead>
+                      <TableHead className="points-col">Points</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -1575,8 +1572,8 @@ function LineupLab({
                       .filter((p) => !p.slot)
                       .sort(
                         (a, b) =>
-                          (b.projection ?? -Infinity) -
-                          (a.projection ?? -Infinity),
+                          (playerPoints(b, now).value ?? -Infinity) -
+                          (playerPoints(a, now).value ?? -Infinity),
                       )
                       .map((p) => (
                         <TableRow key={p.id}>
@@ -1586,18 +1583,8 @@ function LineupLab({
                           <TableCell data-label="Game lock">
                             <Kickoff player={p} now={now} />
                           </TableCell>
-                          <TableCell
-                            data-label="Provider est. pts"
-                            className="points-col"
-                          >
-                            {p.partial ? '~' : ''}
-                            {number(p.projection)}
-                          </TableCell>
-                          <TableCell
-                            data-label="Actual pts"
-                            className="points-col"
-                          >
-                            {number(p.actual)}
+                          <TableCell data-label="Points" className="points-col">
+                            <PlayerScore player={p} now={now} />
                           </TableCell>
                         </TableRow>
                       ))}

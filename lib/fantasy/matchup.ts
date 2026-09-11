@@ -1,16 +1,16 @@
 import { analyze, total } from './analysis.ts';
 import type { InsightReport } from './projections.ts';
 import type { Player } from './types.ts';
+import { playerPoints, scoreProgress } from './points.ts';
 
 const round = (value: number) => Math.round(value * 10) / 10;
 const difference = (a: number | null, b: number | null) =>
   a === null || b === null ? null : round(a - b);
-const known = (p: Player | null): p is Player =>
-  !!p && p.projection !== null && Number.isFinite(p.projection) && !p.partial;
-const sum = (players: (Player | null)[]) =>
-  players.every(known) ? total(players) : null;
 
 export function analyzeMatchup(report: InsightReport, now = Date.now()) {
+  const known = (p: Player | null): p is Player =>
+    !!p && playerPoints(p, now).value !== null;
+  const sum = (players: (Player | null)[]) => total(players, now);
   const { league } = report;
   const opponent = league.opponent;
   const fresh =
@@ -67,14 +67,16 @@ export function analyzeMatchup(report: InsightReport, now = Date.now()) {
     };
   });
   const edges = groups.filter((g) => g.edge !== null);
-  const notStarted = (players: (Player | null)[]) =>
-    players.filter(
-      (p) =>
-        p?.kickoff !== null &&
-        p?.kickoff !== undefined &&
-        p.kickoff > now &&
-        !p.bye,
-    ).length;
+  const progress = {
+    mine: scoreProgress(
+      rows.map((r) => r.mine),
+      now,
+    ),
+    theirs: scoreProgress(
+      rows.map((r) => r.theirs),
+      now,
+    ),
+  };
   return {
     available,
     reason: !opponent
@@ -85,21 +87,22 @@ export function analyzeMatchup(report: InsightReport, now = Date.now()) {
           ? 'Projected matchup comparisons are available for the current week. The score below is the selected week’s reported score.'
           : !verified
             ? 'The opponent’s submitted lineup could not be verified.'
-            : 'Full totals require an estimate for every starting slot on both teams.',
+            : 'Full totals require an actual score or upcoming projection for every starting slot.',
     submitted,
     opposing,
     suggested,
     submittedEdge: difference(submitted, opposing),
     suggestedEdge: difference(suggested, opposing),
     liveEdge: difference(league.actual, opponent?.actual ?? null),
+    progress,
     coverage: {
       mine: rows.filter((r) => known(r.mine)).length,
       theirs: rows.filter((r) => known(r.theirs)).length,
       slots: league.slots.length,
     },
     notStarted: {
-      mine: notStarted(rows.map((r) => r.mine)),
-      theirs: notStarted(rows.map((r) => r.theirs)),
+      mine: progress.mine.upcoming,
+      theirs: progress.theirs.upcoming,
     },
     groups,
     rows,
@@ -115,7 +118,9 @@ export function analyzeMatchup(report: InsightReport, now = Date.now()) {
       ? rows
           .map((r) => r.theirs)
           .filter(known)
-          .sort((a, b) => b.projection! - a.projection!)
+          .sort(
+            (a, b) => playerPoints(b, now).value! - playerPoints(a, now).value!,
+          )
           .slice(0, 3)
       : [],
   };
