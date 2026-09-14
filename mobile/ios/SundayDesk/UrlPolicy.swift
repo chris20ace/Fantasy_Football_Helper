@@ -43,7 +43,8 @@ struct EspnSession {
     let swid: String
 
     static func isValid(_ s2: String, _ swid: String) -> Bool {
-        (16...8192).contains(s2.count) && !s2.contains("\r") && !s2.contains("\n") && !s2.contains(";")
+        (16...6000).contains(s2.utf8.count)
+            && !s2.unicodeScalars.contains { [0, 10, 13, 59].contains($0.value) }
             && swid.count == 38 && swid.first == "{" && swid.last == "}"
             && UUID(uuidString: String(swid.dropFirst().dropLast())) != nil
     }

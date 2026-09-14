@@ -5,8 +5,8 @@ import java.util.regex.Pattern;
 final class EspnSession {
     private static final Pattern SWID = Pattern.compile("^\\{[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\\}$");
     static boolean isValid(String s2, String swid) {
-        return s2 != null && s2.length() >= 16 && s2.length() <= 8192
-            && s2.indexOf('\r') < 0 && s2.indexOf('\n') < 0 && s2.indexOf(';') < 0
+        return s2 != null && s2.length() >= 16 && s2.length() <= 6000
+            && s2.indexOf('\0') < 0 && s2.indexOf('\r') < 0 && s2.indexOf('\n') < 0 && s2.indexOf(';') < 0
             && swid != null && SWID.matcher(swid).matches();
     }
     static String cookie(String header, String name) {

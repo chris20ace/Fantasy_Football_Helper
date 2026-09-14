@@ -34,6 +34,8 @@ final class UrlPolicyTests: XCTestCase {
         XCTAssertTrue(EspnSession.isValid("abcdefghijklmnop", "{" + id + "}"))
         XCTAssertFalse(EspnSession.isValid("", "{" + id + "}"))
         XCTAssertFalse(EspnSession.isValid("abcdefghijklmnop\r\n", "{" + id + "}"))
+        XCTAssertFalse(EspnSession.isValid("abcdefghijklmnop\u{0}", "{" + id + "}"))
+        XCTAssertFalse(EspnSession.isValid(String(repeating: "a", count: 6001), "{" + id + "}"))
         XCTAssertFalse(EspnSession.isValid("abcdefghijklmnop;other=x", "{" + id + "}"))
         XCTAssertFalse(EspnSession.isValid("abcdefghijklmnop", id))
     }
