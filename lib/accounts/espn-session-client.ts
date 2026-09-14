@@ -25,6 +25,50 @@ type ExtensionResult = {
   navigating?: boolean;
   [key: string]: unknown;
 };
+function extensionError(value: { error: unknown; loginRequired?: unknown }) {
+  // The published 0.2.0 connector reports fixed strings, without error codes.
+  // Recognize only our shipped messages; never display arbitrary payloads.
+  if (
+    value.loginRequired === true ||
+    value.error ===
+      'Sign in to ESPN Fantasy in this browser, then try importing again.' ||
+    value.error ===
+      'Sign in to ESPN Fantasy in this browser, then continue to Sunday Desk.'
+  )
+    return new EspnConnectError(
+      'No ESPN sign-in was found in this browser profile. Sign in to ESPN here, then return to Sunday Desk and try connecting again.',
+      'LOGIN_REQUIRED',
+    );
+  if (
+    value.error ===
+      'Allow this connector to access fantasy.espn.com in your browser extension settings, then try again.' ||
+    value.error ===
+      'ESPN access was unavailable. Check this connector’s site access in your browser extension settings.'
+  )
+    return new EspnConnectError(
+      'The connector cannot access ESPN. In your browser’s extension settings, allow Sunday Desk ESPN Connector to access fantasy.espn.com, then reload this page and try again.',
+      'SITE_ACCESS_REQUIRED',
+    );
+  if (
+    value.error ===
+    'Reload this page after installing or updating the connector.'
+  )
+    return new EspnConnectError(
+      'The connector was installed or updated after this page opened. Reload this page, then try again.',
+      'RELOAD_REQUIRED',
+    );
+  if (
+    value.error ===
+    'This ESPN connection attempt expired. Return to Sunday Desk and start again.'
+  )
+    return new EspnConnectError(
+      'This ESPN sign-in attempt expired. Start again with Connect ESPN.',
+      'FLOW_EXPIRED',
+    );
+  return new EspnConnectError(
+    'The ESPN connector could not complete that step. Reload this page and check the connector’s site access in your browser extension settings before trying again.',
+  );
+}
 export function requestEspnExtension(
   target: Window,
   type: string,
@@ -62,15 +106,7 @@ export function requestEspnExtension(
         );
         return;
       }
-      if (value.error)
-        reject(
-          new EspnConnectError(
-            value.loginRequired
-              ? 'Sign in to ESPN, then return here to find your teams.'
-              : 'The ESPN connector could not complete that step. Please try again.',
-            value.loginRequired ? 'LOGIN_REQUIRED' : 'CONNECTION_FAILED',
-          ),
-        );
+      if (value.error) reject(extensionError(value));
       else if (validEspnSession(value.credentials))
         resolve({
           credentials: {

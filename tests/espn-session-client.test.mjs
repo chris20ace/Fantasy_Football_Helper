@@ -134,6 +134,89 @@ test('desktop replies reject foreign origin, stale IDs and leaving setup; cancel
   f.reply({ ...result, requestId: f.messages.at(-1).requestId });
   await assert.rejects(cancelled, { code: 'CANCELLED' });
 });
+test('published 0.2.0 sessions work without version or capability fields', async () => {
+  const f = windowFixture();
+  const request = requestEspnExtension(f.target, 'SUNDAY_DESK_ESPN_SESSION');
+  f.reply({
+    type: 'SUNDAY_DESK_ESPN_RESULT',
+    requestId: f.messages[0].requestId,
+    credentials,
+  });
+  assert.deepEqual(await request, { credentials });
+});
+test('published connector errors retain actionable recovery without exposing arbitrary payloads', async () => {
+  const cases = [
+    [
+      {
+        error:
+          'Sign in to ESPN Fantasy in this browser, then try importing again.',
+      },
+      'LOGIN_REQUIRED',
+      /this browser profile/,
+    ],
+    [
+      {
+        error:
+          'Sign in to ESPN Fantasy in this browser, then continue to Sunday Desk.',
+        loginRequired: true,
+      },
+      'LOGIN_REQUIRED',
+      /Sign in to ESPN/,
+    ],
+    [
+      {
+        error:
+          'Allow this connector to access fantasy.espn.com in your browser extension settings, then try again.',
+      },
+      'SITE_ACCESS_REQUIRED',
+      /allow Sunday Desk ESPN Connector to access fantasy\.espn\.com/,
+    ],
+    [
+      {
+        error:
+          'ESPN access was unavailable. Check this connector’s site access in your browser extension settings.',
+      },
+      'SITE_ACCESS_REQUIRED',
+      /cannot access ESPN/,
+    ],
+    [
+      { error: 'Reload this page after installing or updating the connector.' },
+      'RELOAD_REQUIRED',
+      /Reload this page/,
+    ],
+    [
+      {
+        error:
+          'This ESPN connection attempt expired. Return to Sunday Desk and start again.',
+      },
+      'FLOW_EXPIRED',
+      /expired/,
+    ],
+    [
+      {
+        error: 'unknown error containing private-session-value',
+        loginRequired: 'true',
+      },
+      'CONNECTION_FAILED',
+      /check the connector’s site access/,
+    ],
+  ];
+  for (const [payload, code, message] of cases) {
+    const f = windowFixture();
+    const request = requestEspnExtension(f.target, 'SUNDAY_DESK_ESPN_SESSION');
+    f.reply({
+      type: 'SUNDAY_DESK_ESPN_RESULT',
+      requestId: f.messages[0].requestId,
+      ...payload,
+    });
+    await assert.rejects(request, (error) => {
+      assert.equal(error.code, code);
+      assert.match(error.message, message);
+      assert.equal(error.message.includes('private-session-value'), false);
+      return true;
+    });
+  }
+});
 test('guided login requires explicit matching navigation acknowledgement', async () => {
   const f = windowFixture(),
     flowId = crypto.randomUUID();

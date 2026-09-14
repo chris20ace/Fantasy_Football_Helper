@@ -402,7 +402,9 @@ export default function EspnConnect({
                   ? 'Connect once. Use it everywhere.'
                   : 'Connect your ESPN account'}
               </strong>
-              {(installed || nativeReady) && <span>Ready</span>}
+              {(installed || nativeReady) && (
+                <span>{nativeReady ? 'Ready' : 'Extension detected'}</span>
+              )}
             </div>
             {browserBlocked ? (
               <>
