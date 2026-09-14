@@ -1,6 +1,6 @@
 # Sunday Desk ESPN Connector — submission materials
 
-Status: submitted to the Chrome Web Store and confirmed Pending review on September 10, 2026. Automatic publication after approval is enabled. Do not mark the app's Install button published until the listing is approved and publicly installable.
+Status: version 0.3.0 uploaded and confirmed Pending review on September 13, 2026. Version 0.2.0 remains Published. The website negotiates the installed extension's capabilities and keeps the old import flow working until 0.3.0 is approved and installed. Updated listing and permission explanations are saved in the developer console. The original reviewer instructions below describe 0.2.0 and should be updated at the next editable review window.
 
 Item ID: nmnefiogkokeggmhhijpjoaheegmkjcg
 Developer dashboard: https://chrome.google.com/webstore/devconsole/1b42e1a7-fb0a-4c4b-b1e5-01e1d6dd4464/nmnefiogkokeggmhhijpjoaheegmkjcg/edit
@@ -22,14 +22,15 @@ Privacy policy: https://fantasy-football-helper-orcin.vercel.app/privacy
 
 Bring your ESPN Fantasy Football leagues into one private Sunday Desk workspace without copying session cookies or looking up league IDs.
 
-Install the connector and Sunday Desk opens automatically. Sign in to Sunday Desk, choose Find my ESPN teams, select your leagues, and confirm. If you are not already signed in to ESPN in this browser, use the ESPN sign-in link first. Your ESPN password stays on ESPN.
+Install the connector, return to Sunday Desk Setup, and choose Connect ESPN. ESPN opens in the same tab. Sign in directly with ESPN, then choose Continue to Sunday Desk. Select the leagues you want and confirm. Your ESPN password stays with ESPN.
 
 The connector imports the ESPN account already signed in to your browser. Your Sunday Desk dashboard helps you review rosters, matchups, league standings, and weekly lineup choices alongside your connected Sleeper leagues. Set actual lineups, trades, and waivers directly on ESPN or Sleeper.
 
 How your connection is handled:
 
 - Cookie access is requested by the browser during installation.
-- Choosing Find my ESPN teams sends the espn_s2 and SWID session cookies to Sunday Desk to find your teams.
+- Continuing the explicitly started connection sends the espn_s2 and SWID session cookies to Sunday Desk to find your teams.
+- Temporary sign-in metadata is stored in browser session storage, never credentials.
 - You choose leagues and confirm before the session is stored encrypted for future refreshes.
 - Disconnect ESPN in Sunday Desk to remove its saved session.
 - No passwords are collected by the connector, no general browsing history is collected, and no lineups are changed.
@@ -46,7 +47,9 @@ Connect the ESPN Fantasy account signed into this browser to Sunday Desk, so the
 
 cookies: Read only espn_s2 and SWID applicable to https://fantasy.espn.com/ after the user chooses to import. Transfer them to Sunday Desk to discover leagues, and save the session encrypted only after confirmation. No cookie modification, password collection, or background monitoring.
 
-https://fantasy.espn.com/*: Required solely to read these two ESPN authentication cookies through chrome.cookies.get. No wildcard access to unrelated ESPN subdomains is requested.
+storage: Store only a random flow ID, requesting tab, phase, and ten-minute expiry in chrome.storage.session during the same-tab sign-in. Flow metadata is removed on completion or cancellation. No credentials or browsing history are stored by the extension.
+
+https://fantasy.espn.com/*: Read these two ESPN authentication cookies and display explicit Continue/Cancel controls on ESPN football pages during a user-started connection. No wildcard access to unrelated ESPN subdomains is requested. ESPN pages never receive cookies from the extension.
 
 Sunday Desk content script: Provides the connection bridge only on the exact production origin and /setup path. The background verifies the extension ID, top-level frame, origin and path before reading cookies. All other origins and paths are rejected.
 
@@ -61,7 +64,7 @@ Financial/payment, health, precise location, web browsing history, and unrelated
 
 Certifications: data is not sold; not used or transferred for unrelated purposes; not used for creditworthiness or lending. Data use follows the Chrome Web Store User Data Policy, including Limited Use. The public privacy policy explains processing by Vercel/Supabase, discovery versus persistence, and removal controls.
 
-## Reviewer instructions
+## Original 0.2.0 reviewer instructions
 
 1. Install the extension. The install event opens Sunday Desk setup automatically. No extra toolbar permission toggle is needed.
 2. Create a free Sunday Desk account or sign into one. No purchase is required.
