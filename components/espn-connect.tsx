@@ -8,6 +8,8 @@ import {
   ExternalLink,
   Monitor,
   ShieldCheck,
+  Smartphone,
+  Copy,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,35 +21,82 @@ import {
   type ConnectorRelease,
 } from '@/lib/accounts/connector-release';
 import { watchConnector } from '@/lib/accounts/connector-detection';
+import {
+  beginEspnFlow,
+  clearEspnFlow,
+  consumeEspnReturn,
+  type ConnectorInfo,
+} from '@/lib/accounts/espn-browser-flow';
+import {
+  createNativeEspnClient,
+  requestEspnExtension,
+  EspnConnectError,
+  type EspnSession,
+} from '@/lib/accounts/espn-session-client';
+
 type Preview = {
   ticket: string;
   leagues: ConnectedLeague[];
   selectedLeagueIds?: string[];
 };
-type Session = { s2: string; swid: string };
+type Session = EspnSession;
 export default function EspnConnect({
+  accountId,
   disabled,
   onBusy,
   onConnected,
 }: {
+  accountId: string;
   disabled: boolean;
   onBusy: (busy: boolean) => void;
   onConnected: (connections: PublicConnection[]) => void;
 }) {
-  const [installed, setInstalled] = useState(false),
+  const [installed, setInstalled] = useState<ConnectorInfo | null>(null),
     [checking, setChecking] = useState(false),
     [release, setRelease] = useState<ConnectorRelease>(connectorRelease),
     [phase, setPhase] = useState(''),
     [error, setError] = useState(''),
     [preview, setPreview] = useState<Preview | null>(null),
     [selected, setSelected] = useState<string[]>([]),
-    [consent, setConsent] = useState(false);
-  const pending = useRef<(() => void) | null>(null);
+    [consent, setConsent] = useState(false),
+    [nativeReady, setNativeReady] = useState(false),
+    [phone, setPhone] = useState(false),
+    [unsupported, setUnsupported] = useState(false),
+    [copied, setCopied] = useState(false),
+    [needsLogin, setNeedsLogin] = useState(false);
   const abort = useRef<AbortController | null>(null);
   const probe = useRef<(() => void) | null>(null);
+  const native = useRef<ReturnType<typeof createNativeEspnClient>>(null);
+  const resumed = useRef(false);
+  const discoverRef = useRef(discover);
+  discoverRef.current = discover;
   useEffect(() => {
-    let controller: AbortController | null = null;
+    const ua = navigator.userAgent;
+    const mobile =
+      /Android|iPhone|iPad|iPod/i.test(ua) ||
+      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    setPhone(mobile);
+    setUnsupported(!mobile && !/Chrome|Chromium|Edg\//i.test(ua));
+    const client = createNativeEspnClient(window);
+    native.current = client;
     let disposed = false;
+    void client?.available().then((ready) => {
+      if (!disposed) setNativeReady(ready);
+    });
+    const detection = watchConnector(window, setInstalled, setChecking);
+    probe.current = detection.probe;
+    return () => {
+      disposed = true;
+      detection.dispose();
+      probe.current = null;
+      abort.current?.abort();
+      client?.dispose();
+      native.current = null;
+    };
+  }, []);
+  useEffect(() => {
+    let controller: AbortController | null = null,
+      disposed = false;
     async function checkStore() {
       if (document.visibilityState === 'hidden' || controller) return;
       controller = new AbortController();
@@ -63,14 +112,7 @@ export default function EspnConnect({
           value.storeUrl === connectorStoreUrl
         )
           setRelease(value);
-        else if (
-          !disposed &&
-          value.status === 'in-review' &&
-          value.storeUrl === null
-        )
-          setRelease(connectorRelease);
       } catch {
-        // Keep the known review state when the store check is unavailable.
       } finally {
         controller = null;
       }
@@ -89,75 +131,36 @@ export default function EspnConnect({
     };
   }, []);
   useEffect(() => {
-    const detection = watchConnector(
-      window,
-      () => setInstalled(true),
-      setChecking,
-    );
-    probe.current = detection.probe;
-    return () => {
-      detection.dispose();
-      probe.current = null;
-      pending.current?.();
-      abort.current?.abort();
-    };
-  }, []);
-  function browserSession(): Promise<Session> {
-    return new Promise((resolve, reject) => {
-      const id = crypto.randomUUID();
-      const cleanup = () => {
-        window.removeEventListener('message', receive);
-        clearTimeout(timer);
-        pending.current = null;
-      };
-      const receive = (event: MessageEvent) => {
-        if (
-          event.source !== window ||
-          event.origin !== location.origin ||
-          event.data?.type !== 'SUNDAY_DESK_ESPN_RESULT' ||
-          event.data.requestId !== id
-        )
-          return;
-        cleanup();
-        if (event.data.error) reject(new Error(String(event.data.error)));
-        else if (
-          typeof event.data.credentials?.s2 === 'string' &&
-          typeof event.data.credentials?.swid === 'string'
-        )
-          resolve(event.data.credentials);
-        else
-          reject(
-            new Error(
-              'ESPN did not return a session. Sign in to ESPN and try again.',
-            ),
-          );
-      };
-      pending.current = () => {
-        cleanup();
-        reject(new DOMException('Cancelled', 'AbortError'));
-      };
-      window.addEventListener('message', receive);
-      const timer = window.setTimeout(() => {
-        cleanup();
-        reject(
-          new Error(
-            'Install the connector in desktop Chrome or Edge, then return here and reload this page.',
-          ),
+    if (
+      !installed?.guidedLogin ||
+      disabled ||
+      resumed.current ||
+      !location.hash.startsWith('#espn-connect=')
+    )
+      return;
+    const timer = window.setTimeout(() => {
+      resumed.current = true;
+      let flowId: string | null = null;
+      try {
+        flowId = consumeEspnReturn(sessionStorage, location.hash, accountId);
+      } catch {}
+      window.history.replaceState({}, '', location.pathname + location.search);
+      if (!flowId) {
+        setError(
+          'That ESPN sign-in expired or belongs to another Sunday Desk account. Start again to connect.',
         );
-      }, 6000);
-      window.postMessage(
-        { type: 'SUNDAY_DESK_ESPN_SESSION', requestId: id },
-        location.origin,
-      );
-    });
-  }
+        return;
+      }
+      void discoverRef.current(undefined, undefined, flowId);
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [installed?.guidedLogin, disabled, accountId]);
   async function send(body: Record<string, unknown>) {
-    abort.current = new AbortController();
     const response = await fetch('/api/connections/espn', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
-      signal: abort.current.signal,
+      signal: abort.current?.signal,
     });
     if (response.status === 401) {
       window.location.replace('/login?next=/setup');
@@ -173,37 +176,92 @@ export default function EspnConnect({
       );
     return value;
   }
+  function reportError(e: unknown) {
+    if (
+      (e instanceof DOMException && e.name === 'AbortError') ||
+      (e instanceof EspnConnectError && e.code === 'CANCELLED')
+    )
+      return;
+    if (e instanceof EspnConnectError && e.code === 'LOGIN_REQUIRED')
+      setNeedsLogin(true);
+    setError(
+      e instanceof Error
+        ? e.message
+        : 'Could not connect ESPN. Please try again.',
+    );
+  }
+  async function startLogin() {
+    if (disabled || phase) return;
+    setPhase('login');
+    onBusy(true);
+    setError('');
+    setNeedsLogin(false);
+    abort.current = new AbortController();
+    try {
+      const flowId = beginEspnFlow(sessionStorage, accountId);
+      await requestEspnExtension(
+        window,
+        'SUNDAY_DESK_ESPN_BEGIN_LOGIN',
+        flowId,
+        abort.current.signal,
+      );
+    } catch (e) {
+      try {
+        clearEspnFlow(sessionStorage);
+      } catch {}
+      reportError(e);
+    } finally {
+      setPhase('');
+      onBusy(false);
+    }
+  }
   async function discover(
     manual?: Session & { leagueIds: string[] },
     form?: HTMLFormElement,
+    flowId?: string,
   ) {
-    setPhase('discover');
+    if (disabled || phase) return;
+    setPhase(nativeReady && !manual && !flowId ? 'login' : 'discover');
     onBusy(true);
     setError('');
     setPreview(null);
     setConsent(false);
+    setNeedsLogin(false);
+    abort.current = new AbortController();
     try {
-      const session = manual ?? (await browserSession());
-      const result = (await send({
-        action: 'discover',
-        ...session,
-      })) as Preview;
+      const session =
+        manual ??
+        (nativeReady && native.current && !flowId
+          ? await native.current.connect(abort.current.signal)
+          : (
+              await requestEspnExtension(
+                window,
+                flowId
+                  ? 'SUNDAY_DESK_ESPN_RESUME_LOGIN'
+                  : 'SUNDAY_DESK_ESPN_SESSION',
+                flowId,
+                abort.current.signal,
+              )
+            ).credentials);
+      if (!session) throw new Error('Sign in to ESPN to find your leagues.');
+      setPhase('discover');
+      const result = await send({ action: 'discover', ...session });
       form?.reset();
       setPreview(result);
       setSelected(result.selectedLeagueIds ?? result.leagues.map((l) => l.id));
     } catch (e) {
-      if (!(e instanceof DOMException && e.name === 'AbortError'))
-        setError(e instanceof Error ? e.message : 'Import failed. Try again.');
+      reportError(e);
     } finally {
       setPhase('');
       onBusy(false);
     }
   }
   async function confirm() {
-    if (!preview || !consent || !selected.length) return;
+    if (!preview || !consent || !selected.length || disabled || phase) return;
     setPhase('confirm');
     onBusy(true);
     setError('');
+    abort.current = new AbortController();
     try {
       const result = await send({
         action: 'confirm',
@@ -215,15 +273,13 @@ export default function EspnConnect({
       setConsent(false);
       onConnected(result.connections);
     } catch (e) {
-      if (!(e instanceof DOMException && e.name === 'AbortError'))
-        setError(
-          e instanceof Error ? e.message : 'Connection failed. Try again.',
-        );
+      reportError(e);
     } finally {
       setPhase('');
       onBusy(false);
     }
   }
+  const browserBlocked = !installed && !nativeReady && (phone || unsupported);
   return (
     <div className="espn-connect">
       {error && (
@@ -233,13 +289,27 @@ export default function EspnConnect({
       )}
       {preview ? (
         <section className="espn-review" aria-label="Review your ESPN leagues">
+          <ol className="espn-flow-steps" aria-label="ESPN connection steps">
+            <li className="is-complete">
+              <Check size={16} />
+              <span>Signed in</span>
+            </li>
+            <li className="is-current">
+              <b>2</b>
+              <span>Choose leagues</span>
+            </li>
+            <li>
+              <b>3</b>
+              <span>Connect</span>
+            </li>
+          </ol>
           <span className="connection-ready">
             <Check size={16} /> {preview.leagues.length} leagues found
           </span>
           <h3>Choose your leagues.</h3>
           <p className="muted">
-            These teams belong to the ESPN account you signed in with. This
-            preview expires in 10 minutes.
+            Select the leagues you want on your dashboard. Leave inactive
+            leagues unchecked. You can change your choices later.
           </p>
           <div className="league-choices">
             {preview.leagues.map((league) => (
@@ -306,51 +376,120 @@ export default function EspnConnect({
         </section>
       ) : (
         <>
+          <ol className="espn-flow-steps" aria-label="ESPN connection steps">
+            <li className="is-current">
+              <b>1</b>
+              <span>Sign in</span>
+            </li>
+            <li>
+              <b>2</b>
+              <span>Choose leagues</span>
+            </li>
+            <li>
+              <b>3</b>
+              <span>Connect</span>
+            </li>
+          </ol>
           <div className="espn-shortcut">
             <div className="espn-shortcut-title">
-              <Monitor size={19} />
+              {nativeReady || phone ? (
+                <Smartphone size={20} />
+              ) : (
+                <Monitor size={20} />
+              )}
               <strong>
-                {installed
-                  ? 'Your connector is ready'
-                  : 'Connect ESPN in a few clicks'}
+                {browserBlocked
+                  ? 'Connect once. Use it everywhere.'
+                  : 'Connect your ESPN account'}
               </strong>
-              <span>{installed ? 'Ready' : 'Desktop'}</span>
+              {(installed || nativeReady) && <span>Ready</span>}
             </div>
-            {installed ? (
+            {browserBlocked ? (
               <>
                 <p>
-                  Already signed in to ESPN in this browser? Your teams are one
-                  click away.
+                  {phone
+                    ? 'Connect ESPN from Chrome or Edge on a computer, then sign in to this same Sunday Desk account on your phone.'
+                    : 'Use Chrome, Edge, Brave, Opera, or Vivaldi on a computer to install the ESPN connector.'}
+                </p>
+                <p className="espn-connection-note">
+                  Your selected leagues stay connected to your Sunday Desk
+                  account. You do not need the extension on every device.
                 </p>
                 <Button
                   type="button"
-                  disabled={disabled}
+                  variant="outline"
                   className="connect-submit"
-                  onClick={() => void discover()}
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(
+                        'https://fantasy-football-helper-orcin.vercel.app/setup',
+                      );
+                      setCopied(true);
+                    } catch {
+                      setError(
+                        'Open fantasy-football-helper-orcin.vercel.app/setup on your computer.',
+                      );
+                    }
+                  }}
                 >
-                  {phase === 'discover'
-                    ? 'Finding your teams…'
-                    : 'Find my ESPN teams'}
+                  <Copy size={16} />
+                  {copied ? 'Setup link copied' : 'Copy setup link'}
+                </Button>
+                <span className="sr-only" role="status">
+                  {copied ? 'Setup link copied.' : ''}
+                </span>
+              </>
+            ) : installed || nativeReady ? (
+              <>
+                <p>
+                  {nativeReady
+                    ? 'Sign in directly with ESPN here in the app. Then choose which leagues to bring into Sunday Desk.'
+                    : installed?.guidedLogin
+                      ? 'Continue to ESPN in this tab. After signing in, choose Continue to Sunday Desk to select your leagues.'
+                      : 'Sign in to ESPN in this browser, then find your teams below. You choose which leagues to connect.'}
+                </p>
+                <Button
+                  type="button"
+                  disabled={disabled || !!phase}
+                  className="connect-submit"
+                  onClick={() =>
+                    void (installed?.guidedLogin && !nativeReady
+                      ? startLogin()
+                      : discover())
+                  }
+                >
+                  {phase === 'login'
+                    ? 'Opening ESPN sign-in…'
+                    : phase === 'discover'
+                      ? 'Finding your teams…'
+                      : nativeReady || installed?.guidedLogin
+                        ? 'Connect ESPN'
+                        : 'Find my ESPN teams'}
                   <ArrowRight size={16} />
                 </Button>
                 <small>
-                  Import sends your ESPN session cookies to Sunday Desk to find
-                  your leagues. You will choose leagues and confirm before we
-                  save the session encrypted for future refreshes.
+                  Continuing lets Sunday Desk read your ESPN session to find
+                  your leagues. We save the connection only after you select
+                  leagues and confirm.
                 </small>
-                <a
-                  className="espn-signin-secondary"
-                  href="https://www.espn.com/login/"
-                  rel="noreferrer"
-                >
-                  Need to sign in to ESPN? <ExternalLink size={13} />
-                </a>
+                {!nativeReady && !installed?.guidedLogin && (
+                  <a
+                    className="espn-signin-secondary"
+                    href="https://www.espn.com/login/"
+                    rel="noreferrer"
+                  >
+                    {needsLogin
+                      ? 'Sign in to ESPN, then return here'
+                      : 'Sign in to ESPN or switch accounts'}
+                    <ExternalLink size={14} />
+                  </a>
+                )}
               </>
             ) : (
               <>
                 <p>
-                  Install once, then return here and reload to find your teams.
-                  No cookie copying or league IDs.
+                  Install the connector once to sign in with ESPN and find your
+                  teams. No league IDs or cookie copying.
                 </p>
                 {release.status === 'published' && release.storeUrl ? (
                   <a
@@ -358,33 +497,18 @@ export default function EspnConnect({
                     href={release.storeUrl}
                     rel="noreferrer"
                   >
-                    Install ESPN Connector <ExternalLink size={16} />
+                    Install ESPN Connector
+                    <ExternalLink size={16} />
                   </a>
                 ) : (
                   <div className="connector-store-pending">
-                    <strong>
-                      {release.status === 'in-review'
-                        ? 'Browser-store approval pending'
-                        : 'Browser-store installation is being prepared'}
-                    </strong>
+                    <strong>Checking the browser-store listing</strong>
                     <span>
-                      We check automatically. The install button appears after
-                      Google publishes the listing. Manual setup is available
-                      below in the meantime.
+                      The install button appears when the published connector is
+                      available. You can also use the developer package below.
                     </span>
                   </div>
                 )}
-                <div className="connector-steps">
-                  <span>
-                    <b>1</b> Install connector
-                  </span>
-                  <span>
-                    <b>2</b> Find your teams
-                  </span>
-                  <span>
-                    <b>3</b> Choose & connect
-                  </span>
-                </div>
                 <button
                   type="button"
                   className="espn-signin-secondary"
@@ -398,48 +522,37 @@ export default function EspnConnect({
               </>
             )}
           </div>
-          <p className="connector-mobile">
-            <Monitor size={16} /> Connect once in Chrome or Edge on a computer.
-            Your dashboard then works on your phone.
-          </p>
-          {!installed && (
+          {!browserBlocked && !nativeReady && !installed && (
             <details className="connection-help connector-install">
               <summary>
-                {release.status === 'published'
-                  ? 'Alternative: install manually'
-                  : 'Manual installation while the store listing is pending'}{' '}
+                Alternative: install manually
                 <ChevronDown size={15} />
               </summary>
               <p>
-                This alternative uses Chrome or Edge Developer mode.
-                {release.status === 'published'
-                  ? ' The store install button above is the easiest option.'
-                  : ' Normal browser-store installation will become available after approval.'}
+                For desktop Chrome or Edge. The browser-store install above is
+                the easiest option.
               </p>
               <a
                 className="connector-download"
                 href="/downloads/sunday-desk-espn-connector.zip"
                 download
               >
-                <Download size={16} /> Download developer package
+                <Download size={16} />
+                Download developer package
               </a>
               <ol>
                 <li>Extract the ZIP to a folder you will keep.</li>
                 <li>
                   Open <code>chrome://extensions</code> or{' '}
-                  <code>edge://extensions</code>, turn on Developer mode, and
+                  <code>edge://extensions</code>, enable Developer mode, and
                   choose <strong>Load unpacked</strong>. Select the extracted
-                  folder containing <code>manifest.json</code>.
+                  folder.
                 </li>
                 <li>
-                  Return to Sunday Desk and reload this page. Sign in if needed,
-                  then choose <strong>Find my ESPN teams</strong>.
+                  Return here and reload, then choose{' '}
+                  <strong>Connect ESPN</strong>.
                 </li>
               </ol>
-              <p>
-                Already installed an older connector? Replace its files with
-                this version and reload it in your browser extension settings.
-              </p>
             </details>
           )}
           <details className="connection-help espn-manual">

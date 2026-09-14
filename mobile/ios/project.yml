@@ -1,0 +1,53 @@
+name: SundayDesk
+options:
+  minimumXcodeGenVersion: 2.46.0
+  deploymentTarget:
+    iOS: '16.0'
+settings:
+  base:
+    SWIFT_VERSION: '5.0'
+    IPHONEOS_DEPLOYMENT_TARGET: '16.0'
+    TARGETED_DEVICE_FAMILY: '1,2'
+    CODE_SIGN_STYLE: Automatic
+    MARKETING_VERSION: '0.1.0'
+    CURRENT_PROJECT_VERSION: 1
+targets:
+  SundayDesk:
+    type: application
+    platform: iOS
+    sources:
+      - path: SundayDesk
+        excludes: [Info.plist]
+    info:
+      path: SundayDesk/Info.plist
+      properties:
+        CFBundleDisplayName: Sunday Desk
+        UILaunchScreen: {}
+        UIApplicationSupportsIndirectInputEvents: true
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.acebuilds.sundaydesk
+        SUPPORTS_MACCATALYST: false
+        GENERATE_INFOPLIST_FILE: false
+  SundayDeskTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources: [SundayDeskTests]
+    dependencies:
+      - target: SundayDesk
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.acebuilds.sundaydesk.tests
+        GENERATE_INFOPLIST_FILE: true
+schemes:
+  SundayDesk:
+    build:
+      targets:
+        SundayDesk: all
+        SundayDeskTests: [test]
+    test:
+      targets: [SundayDeskTests]

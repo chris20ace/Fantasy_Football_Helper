@@ -86,6 +86,18 @@ export function isPublicConnector(
   }
 }
 
+export function releasedConnectorVersion(
+  manifest: string,
+  id = connectorStoreId,
+): string | null {
+  if (!hasReleasedPackage(manifest, id)) return null;
+  const app = [...manifest.matchAll(/<app\b([^>]*)>([\s\S]*?)<\/app>/g)].find(
+    (m) => attributes(m[1]).appid === id,
+  );
+  const update = app?.[2].match(/<updatecheck\b([^>]*)\/?\s*>/);
+  return update ? attributes(update[1]).version : null;
+}
+
 async function readPublic(url: string, listing = false): Promise<string> {
   let response: Response | undefined;
   const signal = AbortSignal.timeout(10000);
@@ -144,11 +156,12 @@ export async function getConnectorRelease(): Promise<ConnectorRelease> {
       url.searchParams.set('acceptformat', 'crx3');
       url.searchParams.set('x', 'id=' + connectorStoreId + '&v=0.0.0.0&uc');
       const manifest = await readPublic(url.href);
-      if (hasReleasedPackage(manifest)) {
+      const version = releasedConnectorVersion(manifest);
+      if (version) {
         const listing = await readPublic(connectorStoreUrl + '?hl=en', true);
         if (isPublicConnector(manifest, listing))
           release = {
-            ...connectorRelease,
+            version,
             status: 'published',
             storeUrl: connectorStoreUrl,
           };

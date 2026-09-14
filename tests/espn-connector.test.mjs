@@ -11,9 +11,13 @@ import {
 import { seal } from '../lib/accounts/crypto.ts';
 import {
   allowedSender,
+  allowedEspnSender,
   validRequest,
+  validId,
   espnAccess,
   appOrigin,
+  espnLoginUrl,
+  flowLifetimeMs,
 } from '../extensions/espn-connector/policy.js';
 process.env.CONNECTION_ENCRYPTION_KEY = randomBytes(32).toString('base64');
 const entry = (league, game = 1, season = 2026, type = 9) => ({
@@ -106,7 +110,8 @@ async function worker({
   missing = false,
   tabClosed = false,
 } = {}) {
-  let listener, onInstalled, onAction;
+  let listener, onInstalled, onAction, onRemoved;
+  const state = {};
   const reads = [],
     opened = [],
     updated = [];
@@ -132,12 +137,27 @@ async function worker({
       },
     },
     tabs: {
+      onRemoved: {
+        addListener: (fn) => {
+          onRemoved = fn;
+        },
+      },
       update: async (id, options) => {
         updated.push({ id, ...options });
         if (tabClosed) throw new Error('Tab closed');
       },
       create: async (options) => {
         opened.push(options);
+      },
+    },
+    storage: {
+      session: {
+        get: async (key) => ({ [key]: state[key] }),
+        set: async (values) =>
+          Object.assign(state, JSON.parse(JSON.stringify(values))),
+        remove: async (key) => {
+          delete state[key];
+        },
       },
     },
     permissions: { contains: async () => permission },
@@ -157,9 +177,13 @@ async function worker({
   vm.runInNewContext(code, {
     chrome,
     allowedSender,
+    allowedEspnSender,
     validRequest,
+    validId,
     espnAccess,
     appOrigin,
+    espnLoginUrl,
+    flowLifetimeMs,
   });
   return {
     reads,
@@ -167,7 +191,12 @@ async function worker({
     updated,
     onInstalled,
     onAction,
+    onRemoved,
     listener,
+    state,
+    setMissing: (value) => {
+      missing = value;
+    },
     send: (msg, who) =>
       new Promise((resolve) => {
         if (!listener(msg, who, resolve)) resolve(null);
@@ -252,6 +281,14 @@ void test('the page bridge rejects foreign sources and origins and targets repli
   assert.equal(sent.length, 1);
   assert.equal(posted[0].origin, appOrigin);
   assert.equal(posted[0].message.requestId, request.requestId);
+  await handler({
+    source: window,
+    origin: appOrigin,
+    data: { ...request, type: 'SUNDAY_DESK_ESPN_PING' },
+  });
+  assert.equal(posted.at(-1).message.type, 'SUNDAY_DESK_ESPN_PONG');
+  assert.equal(posted.at(-1).message.version, '0.3.0');
+  assert.ok(posted.at(-1).message.capabilities.includes('same-tab-login'));
 });
 void test('public connector has no localhost permission or persistent credential storage', async () => {
   const manifest = JSON.parse(
@@ -261,7 +298,8 @@ void test('public connector has no localhost permission or persistent credential
     ),
   );
   assert.equal(manifest.incognito, 'not_allowed');
-  assert.deepEqual(manifest.permissions, ['cookies']);
+  assert.equal(manifest.version, '0.3.0');
+  assert.deepEqual(manifest.permissions, ['cookies', 'storage']);
   assert.deepEqual(manifest.host_permissions, ['https://fantasy.espn.com/*']);
   assert.equal(manifest.optional_permissions, undefined);
   assert.equal(manifest.action.default_popup, undefined);
@@ -269,7 +307,239 @@ void test('public connector has no localhost permission or persistent credential
     appOrigin + '/setup*',
   ]);
   assert.ok(!JSON.stringify(manifest).includes('localhost'));
-  assert.ok(!JSON.stringify(manifest).includes('storage'));
+  assert.deepEqual(manifest.content_scripts[1].matches, [
+    'https://fantasy.espn.com/football*',
+  ]);
+  assert.deepEqual(manifest.content_scripts[1].js, ['espn-login.js']);
+  const background = await readFile(
+    new URL('../extensions/espn-connector/background.js', import.meta.url),
+    'utf8',
+  );
+  assert.ok(!background.includes('storage.local'));
+  assert.ok(!background.includes('storage.sync'));
+});
+
+const flowId = '22222222-2222-4222-8222-222222222222';
+const otherFlowId = '33333333-3333-4333-8333-333333333333';
+const appTab = { ...sender, tab: { id: 42 } };
+const espnTab = { ...appTab, url: 'https://fantasy.espn.com/football/' };
+const flowMessage = (name, id = flowId) => ({
+  ...request,
+  type: 'SUNDAY_DESK_ESPN_' + name,
+  flowId: id,
+});
+
+void test('same-tab sign in requires explicit start and continue, stores only ephemeral flow metadata, and resumes once', async () => {
+  const w = await worker({ missing: true });
+  assert.equal((await w.send(request, appTab)).loginRequired, true);
+  w.reads.length = 0;
+  assert.equal(
+    (await w.send(flowMessage('LOGIN_STATUS'), espnTab)).active,
+    false,
+  );
+  assert.equal(w.updated.length, 0);
+  assert.equal(w.reads.length, 0);
+  assert.equal(
+    (await w.send(flowMessage('BEGIN_LOGIN'), appTab)).navigating,
+    true,
+  );
+  assert.deepEqual(w.updated, [{ id: 42, url: espnLoginUrl }]);
+  assert.deepEqual(Object.keys(w.state['espn-login:42']).sort(), [
+    'expiresAt',
+    'flowId',
+    'phase',
+  ]);
+  assert.equal(
+    (await w.send(flowMessage('LOGIN_STATUS'), espnTab)).active,
+    true,
+  );
+  assert.equal(w.reads.length, 0);
+  const waiting = await w.send(flowMessage('COMPLETE_LOGIN'), espnTab);
+  assert.equal(waiting.loginRequired, true);
+  assert.equal(w.updated.length, 1);
+  w.setMissing(false);
+  const ready = await w.send(flowMessage('COMPLETE_LOGIN'), espnTab);
+  assert.equal(ready.navigating, true);
+  assert.equal(ready.credentials, undefined);
+  assert.deepEqual(w.updated.at(-1), {
+    id: 42,
+    url: appOrigin + '/setup#espn-connect=' + flowId,
+  });
+  assert.ok(!JSON.stringify(w.state).includes('synthetic'));
+  assert.equal(
+    (await w.send(flowMessage('LOGIN_STATUS'), espnTab)).active,
+    false,
+  );
+  const results = await Promise.all([
+    w.send(flowMessage('RESUME_LOGIN'), appTab),
+    w.send(flowMessage('RESUME_LOGIN'), appTab),
+  ]);
+  assert.equal(results.filter((result) => result.credentials).length, 1);
+  assert.equal(results.filter((result) => result.error).length, 1);
+  assert.deepEqual(w.state, {});
+  assert.equal(w.opened.length, 0);
+});
+
+void test('flow actions reject cross-origin requests, wrong frames, other tabs, changed nonces, and premature resume without reading cookies', async () => {
+  const w = await worker();
+  await w.send(flowMessage('BEGIN_LOGIN'), appTab);
+  for (const url of [
+    appOrigin + '.evil.example/setup',
+    'https://espn.com/football/',
+    'https://fantasy.espn.com.evil.example/football/',
+    'https://fantasy.espn.com/footballevil',
+    'http://fantasy.espn.com/football/',
+    'https://fantasy.espn.com/basketball/',
+  ])
+    assert.equal(
+      await w.send(flowMessage('COMPLETE_LOGIN'), { ...espnTab, url }),
+      null,
+    );
+  assert.equal(
+    await w.send(flowMessage('COMPLETE_LOGIN'), { ...espnTab, frameId: 1 }),
+    null,
+  );
+  assert.equal(
+    await w.send(flowMessage('COMPLETE_LOGIN'), {
+      ...espnTab,
+      id: 'another-extension',
+    }),
+    null,
+  );
+  assert.equal(await w.send(flowMessage('SESSION'), espnTab), null);
+  assert.equal(await w.send(flowMessage('COMPLETE_LOGIN'), appTab), null);
+  assert.equal(await w.send(flowMessage('BEGIN_LOGIN'), espnTab), null);
+  assert.equal(
+    await w.send(
+      flowMessage('BEGIN_LOGIN', '------------------------------------'),
+      appTab,
+    ),
+    null,
+  );
+  assert.match(
+    (await w.send(flowMessage('RESUME_LOGIN'), appTab)).error,
+    /expired/,
+  );
+  assert.match(
+    (
+      await w.send(flowMessage('COMPLETE_LOGIN'), {
+        ...espnTab,
+        tab: { id: 99 },
+      })
+    ).error,
+    /expired/,
+  );
+  assert.match(
+    (await w.send(flowMessage('COMPLETE_LOGIN', otherFlowId), espnTab)).error,
+    /expired/,
+  );
+  assert.equal(w.reads.length, 0);
+  assert.equal(w.updated.length, 1);
+});
+
+void test('expired, cancelled, closed, and failed-navigation flows never survive or open another tab', async () => {
+  const w = await worker();
+  await w.send(flowMessage('BEGIN_LOGIN'), appTab);
+  w.state['espn-login:42'].expiresAt = Date.now() - 1;
+  assert.equal(
+    (await w.send(flowMessage('LOGIN_STATUS'), espnTab)).active,
+    false,
+  );
+  assert.deepEqual(w.state, {});
+  assert.equal(
+    (await w.send(flowMessage('CANCEL_LOGIN'), espnTab)).navigating,
+    true,
+  );
+  assert.deepEqual(w.updated.at(-1), { id: 42, url: appOrigin + '/setup' });
+  await w.send(flowMessage('BEGIN_LOGIN'), appTab);
+  assert.equal(
+    (await w.send(flowMessage('CANCEL_LOGIN'), espnTab)).navigating,
+    true,
+  );
+  assert.deepEqual(w.state, {});
+  assert.deepEqual(w.updated.at(-1), { id: 42, url: appOrigin + '/setup' });
+  await w.send(flowMessage('BEGIN_LOGIN'), appTab);
+  w.onRemoved(42);
+  assert.deepEqual(w.state, {});
+  const closed = await worker({ tabClosed: true });
+  await closed.send(flowMessage('BEGIN_LOGIN'), appTab);
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(closed.state, {});
+  assert.equal(w.opened.length + closed.opened.length, 0);
+  assert.equal(w.reads.length + closed.reads.length, 0);
+});
+
+void test('ESPN helper is absent on ordinary visits and accepts only trusted button clicks during an active flow', async () => {
+  const source = await readFile(
+    new URL('../extensions/espn-connector/espn-login.js', import.meta.url),
+    'utf8',
+  );
+  async function page(active) {
+    const nodes = [],
+      sent = [],
+      appended = [];
+    const window = {};
+    window.top = window;
+    const document = {
+      createElement: (tag) => {
+        const node = {
+          tag,
+          dataset: {},
+          children: [],
+          handlers: {},
+          append(...children) {
+            this.children.push(...children);
+          },
+          setAttribute() {},
+          attachShadow() {
+            return document.createElement('shadow');
+          },
+          addEventListener(name, fn) {
+            this.handlers[name] = fn;
+          },
+        };
+        nodes.push(node);
+        return node;
+      },
+      documentElement: { append: (node) => appended.push(node) },
+    };
+    vm.runInNewContext(source, {
+      window,
+      document,
+      crypto: { randomUUID: () => request.requestId },
+      location: { origin: 'https://fantasy.espn.com', pathname: '/football/' },
+      chrome: {
+        runtime: {
+          sendMessage: async (message) => {
+            sent.push(message);
+            return message.type.endsWith('LOGIN_STATUS')
+              ? { active, flowId, expiresAt: Date.now() + 60_000 }
+              : { error: 'Still signed out' };
+          },
+        },
+      },
+    });
+    await new Promise((resolve) => setImmediate(resolve));
+    return { nodes, sent, appended };
+  }
+  const ordinary = await page(false);
+  assert.equal(ordinary.appended.length, 0);
+  assert.deepEqual(
+    ordinary.sent.map((message) => message.type),
+    ['SUNDAY_DESK_ESPN_LOGIN_STATUS'],
+  );
+  const active = await page(true);
+  assert.equal(active.appended.length, 1);
+  const proceed = active.nodes.find(
+    (node) => node.tag === 'button' && node.className === 'primary',
+  );
+  proceed.handlers.click({ isTrusted: false });
+  assert.equal(active.sent.length, 1);
+  proceed.handlers.click({ isTrusted: true });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(active.sent.at(-1).type, 'SUNDAY_DESK_ESPN_COMPLETE_LOGIN');
+  assert.equal(active.sent.at(-1).flowId, flowId);
+  assert.equal(proceed.disabled, false);
 });
 
 void test('toolbar reuses the clicked tab; installation never opens a page or collects cookies', async () => {

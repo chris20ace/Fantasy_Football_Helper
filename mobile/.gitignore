@@ -1,0 +1,11 @@
+**/.gradle/
+**/build/
+**/local.properties
+**/*.xcuserstate
+**/xcuserdata/
+ios/SundayDesk.xcodeproj/
+ios/DerivedData/
+.tools/
+*.keystore
+*.jks
+*.mobileprovision

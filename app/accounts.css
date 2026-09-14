@@ -796,6 +796,103 @@
   text-underline-offset: 3px;
 }
 
+/* One guided connection, with the same league review on web and mobile. */
+.espn-flow-steps {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  padding: 0;
+  margin: 0 0 16px;
+}
+.espn-flow-steps li {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  color: #64738a;
+  font-size: 0.875rem;
+  line-height: 1.35;
+}
+.espn-flow-steps b,
+.espn-flow-steps svg {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #e7edf7;
+  font-size: 0.8125rem;
+}
+.espn-flow-steps .is-current {
+  color: #224fb5;
+  font-weight: 700;
+}
+.espn-flow-steps .is-current b {
+  background: #2456d9;
+  color: white;
+}
+.espn-flow-steps .is-complete {
+  color: #277059;
+}
+.espn-flow-steps .is-complete svg {
+  padding: 4px;
+  background: #e5f4ec;
+}
+.espn-shortcut-title strong {
+  font-size: 1rem;
+}
+.espn-shortcut-title > span {
+  font-size: 0.75rem;
+}
+.espn-shortcut p {
+  font-size: 1rem;
+  line-height: 1.55;
+}
+.espn-shortcut .espn-connection-note,
+.espn-review > p {
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+.espn-shortcut small {
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+.espn-signin-secondary {
+  min-height: 44px;
+  font-size: 0.875rem;
+  margin-top: 10px;
+}
+.espn-private {
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+.espn-consent {
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+.espn-review .league-choices strong {
+  font-size: 1rem;
+}
+.espn-review .league-choices small {
+  font-size: 0.875rem;
+}
+@media (max-width: 600px) {
+  .espn-shortcut,
+  .espn-review {
+    padding: 16px;
+  }
+  .espn-flow-steps {
+    gap: 8px;
+  }
+  .espn-flow-steps li {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 5px;
+  }
+}
+
 .privacy-content {
   max-width: 780px;
   padding: 52px 24px 80px;

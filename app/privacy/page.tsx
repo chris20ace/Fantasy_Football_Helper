@@ -19,7 +19,7 @@ export default function PrivacyPage() {
       <main className="privacy-content">
         <div className="eyebrow">SUNDAY DESK & ESPN CONNECTOR</div>
         <h1>Your data, explained.</h1>
-        <p className="muted">Last updated September 10, 2026</p>
+        <p className="muted">Last updated September 13, 2026</p>
         <h2>What we collect and why</h2>
         <p>
           Sunday Desk stores the name and email you provide for your account, a
@@ -30,12 +30,12 @@ export default function PrivacyPage() {
         </p>
         <h2>Connecting ESPN</h2>
         <p>
-          The browser connector reads only the espn_s2 and SWID cookies
-          applicable to ESPN Fantasy after you choose to import. These cookies
-          identify and authenticate your ESPN session; they can grant account
-          access. Sunday Desk uses them to read your leagues. It does not
-          collect your ESPN password, change lineups, submit waivers, or make
-          trades.
+          The browser connector or native mobile connector reads only the
+          espn_s2 and SWID cookies applicable to ESPN Fantasy after you choose
+          to continue connecting. These cookies identify and authenticate your
+          ESPN session; they can grant account access. Sunday Desk uses them to
+          read your leagues. It does not collect your ESPN password, change
+          lineups, submit waivers, or make trades.
         </p>
         <p>
           Import sends these session values over HTTPS to Sunday Desk to
@@ -47,8 +47,22 @@ export default function PrivacyPage() {
         </p>
         <p>
           The extension does not store credentials, collect general browsing
-          history, use analytics, or continuously monitor ESPN cookies.
-          Opening Sunday Desk setup alone does not import an account.
+          history, use analytics, or continuously monitor ESPN cookies. A guided
+          sign-in temporarily stores a random connection token, its expiration,
+          and the requesting tab or Sunday Desk account. It does not store ESPN
+          credentials in that token. Returning to setup resumes only the sign-in
+          you explicitly started; otherwise opening setup does not import an
+          account.
+        </p>
+        <p>
+          The native mobile connector opens ESPN in a separate browser view
+          without a Sunday Desk scripting bridge. Its Continue button reads the
+          session only for the requesting setup screen. iOS uses a
+          non-persistent provider browser. Android uses an isolated provider
+          browser and clears its cookies, cache, and web storage before and
+          after sign-in. Your Sunday Desk login remains in the app until you
+          sign out. Native apps are currently in development and are not yet
+          available in app stores.
         </p>
         <h2>Where data is processed</h2>
         <p>

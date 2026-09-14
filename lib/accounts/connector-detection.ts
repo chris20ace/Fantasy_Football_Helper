@@ -1,7 +1,8 @@
+import { connectorInfo, type ConnectorInfo } from './espn-browser-flow.ts';
 // The extension bridge starts at document_idle, which can follow hydration.
 export function watchConnector(
   target: Window,
-  onReady: () => void,
+  onReady: (info: ConnectorInfo) => void,
   onChecking: (checking: boolean) => void,
 ) {
   let requestId = '',
@@ -39,7 +40,7 @@ export function watchConnector(
       return;
     stop();
     onChecking(false);
-    onReady();
+    onReady(connectorInfo(event.data));
   }
   target.addEventListener('message', receive);
   target.addEventListener('focus', probe);

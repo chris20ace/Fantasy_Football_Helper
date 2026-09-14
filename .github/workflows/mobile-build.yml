@@ -1,0 +1,59 @@
+name: Mobile connection builds
+on:
+  push:
+    branches: [main]
+    paths: ['mobile/**', '.github/workflows/mobile-build.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: mobile-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Install Android SDK platform
+        run: sdkmanager 'platforms;android-36' 'build-tools;35.0.0' 'build-tools;36.0.0'
+      - name: Test and build Android development app
+        working-directory: mobile/android
+        run: bash ./gradlew :app:testDebugUnitTest :app:assembleDebug --no-daemon
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: sunday-desk-android-development
+          path: mobile/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
+  ios:
+    runs-on: macos-15
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Install pinned XcodeGen
+        run: |
+          curl --fail --location --output "$RUNNER_TEMP/xcodegen.zip" https://github.com/yonaskolb/XcodeGen/releases/download/2.46.0/xcodegen.zip
+          echo '4d9e34b62172d645eed6457cac13fc222569974098ef4ee9c3368bedf0196806  '"$RUNNER_TEMP/xcodegen.zip" | shasum -a 256 -c -
+          unzip -q "$RUNNER_TEMP/xcodegen.zip" -d "$RUNNER_TEMP/xcodegen-tools"
+          echo "$RUNNER_TEMP/xcodegen-tools/xcodegen/bin" >> "$GITHUB_PATH"
+      - name: Compile iOS app and tests without signing
+        run: bash mobile/scripts/build-ios.sh
+      - name: Run iOS URL boundary tests
+        run: |
+          SIMULATOR_ID=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin); print(next(x["udid"] for group in d["devices"].values() for x in group if "iPhone" in x["name"]))')
+          xcodebuild -project mobile/ios/SundayDesk.xcodeproj -scheme SundayDesk -configuration Debug -destination "platform=iOS Simulator,id=$SIMULATOR_ID" -derivedDataPath mobile/ios/DerivedData CODE_SIGNING_ALLOWED=NO test-without-building
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: sunday-desk-ios-simulator
+          path: mobile/ios/DerivedData/Build/Products/Debug-iphonesimulator/
+          if-no-files-found: error
+          retention-days: 14

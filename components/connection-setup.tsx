@@ -17,10 +17,12 @@ import LeagueManager from './league-manager';
 import type { PublicConnection } from '@/lib/accounts/types';
 export default function ConnectionSetup({
   name,
+  accountId,
   initial,
   claim,
 }: {
   name: string;
+  accountId: string;
   initial: PublicConnection[];
   claim?: string;
 }) {
@@ -197,6 +199,7 @@ export default function ConnectionSetup({
                 )}
                 {provider === 'espn' ? (
                   <EspnConnect
+                    accountId={accountId}
                     disabled={!!busy}
                     onBusy={(value) => setBusy(value ? 'espn' : '')}
                     onConnected={(value) => {

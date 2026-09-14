@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Sunday Desk ESPN Connector",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "Import your ESPN Fantasy Football teams into your private Sunday Desk dashboard. Choose your leagues and connect in a few clicks.",
   "incognito": "not_allowed",
   "action": {
@@ -23,9 +23,15 @@
       "js": ["bridge.js"],
       "all_frames": false,
       "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://fantasy.espn.com/football*"],
+      "js": ["espn-login.js"],
+      "all_frames": false,
+      "run_at": "document_idle"
     }
   ],
-  "permissions": ["cookies"],
+  "permissions": ["cookies", "storage"],
   "host_permissions": ["https://fantasy.espn.com/*"],
   "icons": {
     "16": "icon-16.png",

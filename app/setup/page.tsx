@@ -14,6 +14,7 @@ export default async function Setup({
   return (
     <ConnectionSetup
       name={user.displayName}
+      accountId={user.userId}
       initial={await publicConnections(user.userId)}
       claim={claim}
     />
